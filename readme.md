@@ -43,33 +43,80 @@ powershell -c "irm https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Ag
 
 ```mermaid
 flowchart TB
-    subgraph UI["🖥️ User Interface"]
-        CLI["Native CLI (Bun)"]
-        Web["Web Browser (Xterm.js)"]
+    subgraph UI["🖥️ User Interface Layer"]
+        direction LR
+        CLI["💻 Native CLI<br><small>Bun Runtime</small>"]
+        Web["🌐 Web Browser<br><small>Xterm.js Terminal</small>"]
     end
 
-    subgraph Core["⚙️ Core Engine"]
-        WS["WebSocket Server (Bun)"]
-        Router["Model Router"]
+    subgraph Gateway["🌉 Communication Gateway"]
+        WS["🔌 WebSocket Server<br><small>Bun-native • Bi-directional</small>"]
     end
 
-    subgraph Models["🤖 AI Models"]
-        M1["Model 1<br>(OpenAI)"]
-        M2["Model 2<br>(OpenAI)"]
-        M3["Model 3+<br>(Custom)"]
+    subgraph Core["⚙️ Core Orchestration Engine"]
+        direction TB
+        Router["🎯 Smart Model Router<br><small>Load Balancer • Fallback Logic</small>"]
+        Cache["💾 Response Cache<br><small>Redis-backed • 5min TTL</small>"]
+        Parser["📝 Context Parser<br><small>Token Counter • Truncation</small>"]
     end
 
-    subgraph Tools["🔧 Tool Calling"]
-        Read["📖 read_file"]
-        Write["✏️ write_file"]
-        Delete["🗑️ delete_file"]
+    subgraph Models["🤖 AI Model Pool"]
+        direction LR
+        M1["GPT-4o<br><small>Primary • 128k ctx</small>"]
+        M2["Claude 3.5<br><small>Secondary • 200k ctx</small>"]
+        M3["Gemini Pro<br><small>Fallback • 1M ctx</small>"]
+        M4["Llama 3<br><small>Local • 8k ctx</small>"]
     end
 
-    UI -->|WebSocket| Core
-    Router -->|Query All| Models
-    Models -->|First Response Wins| Router
-    Router -->|Execute| Tools
-    Tools -->|File System| Output["📊 Terminal Output"]
+    subgraph Tools["🔧 Tool Execution Engine"]
+        direction LR
+        Read["📖 read_file<br><small>Async I/O</small>"]
+        Write["✏️ write_file<br><small>Atomic Write</small>"]
+        Delete["🗑️ delete_file<br><small>Safe Delete</small>"]
+        Exec["⚡ execute_command<br><small>Sandboxed</small>"]
+        Search["🔍 search_code<br><small>RIPGrep</small>"]
+    end
+
+    subgraph Output["📊 Output Management"]
+        Terminal["🖥️ Terminal Output<br><small>ANSI Colors • Real-time</small>"]
+        Logs["📋 Audit Logs<br><small>JSONL • Rotating</small>"]
+        Metrics["📈 Performance Metrics<br><small>Prometheus Export</small>"]
+    end
+
+    UI -->|WebSocket Connection| Gateway
+    Gateway -->|JSON-RPC| Core
+    
+    CLI -->|Direct| Gateway
+    Web -->|Browser| Gateway
+    
+    Router -->|Priority-based| Models
+    Models -->|Streaming Response| Router
+    Router -->|Fastest Wins| Gateway
+    
+    Router -->|Tool Call| Tools
+    Tools -->|Success/Failure| Router
+    
+    Tools -->|stdout/stderr| Terminal
+    Tools -->|Operations| Logs
+    Core -->|Latency/Usage| Metrics
+    
+    Parser -->|Pre-process| Router
+    Cache -->|Cache Hit/Miss| Router
+    Router -->|Cache Store| Cache
+
+    classDef uiStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef gatewayStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef coreStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef modelStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef toolStyle fill:#fce4ec,stroke:#b71c1c,stroke-width:2px
+    classDef outputStyle fill:#e0f7fa,stroke:#00695c,stroke-width:2px
+
+    class CLI,Web uiStyle
+    class WS gatewayStyle
+    class Router,Cache,Parser coreStyle
+    class M1,M2,M3,M4 modelStyle
+    class Read,Write,Delete,Exec,Search toolStyle
+    class Terminal,Logs,Metrics outputStyle
 ```
 
 
@@ -96,12 +143,6 @@ You can execute prompts, interact with the agent, manage local files, and type e
 | **Runtime & Server** | [<img src="https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white" alt="Bun" />](https://bun.sh) |
 | **Frontend Terminal** | [![Xterm.js](https://img.shields.io/badge/xterm.js-20232A?style=for-the-badge&logo=xterm&logoColor=white)](https://xtermjs.org) |
 | **AI Provider Client** | [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)](https://www.npmjs.com/package/openai) |
-
-### 📦 Detailed Versions
-
-- **Bun** – JavaScript runtime & package manager  
-- **Xterm.js** – Terminal emulator for the browser  
-- **OpenAI Node SDK** – Official Node.js client for OpenAI APIs
 
 
 ### Made with ❤️ VaibhavDev
