@@ -1,10 +1,8 @@
-declare const require: any;
-declare const process: any;
 declare const Bun: any;
 const fs = require("node:fs");
 const path = require("node:path");
 
-import { createSession, renderBanner, c, loadConfig, promptUserForConfig, saveConfig, REPO_URL } from "./agent";
+import { createSession, renderBanner, c, loadConfig, saveConfig, REPO_URL } from "./agent";
 
 const PORT = Number(process.env?.PORT || 30001);
 const PROMPT = `${c.magenta("You")} ${c.gray("›")} `;

@@ -81,6 +81,13 @@ async function main() {
       handled = true;
     }
     else if (cmd === "edit") {
+      if (!config) {
+        console.log(c.red('❌ No configuration available to edit. Please reconfigure the agent.'));
+        handled = true;
+        rl.prompt();
+        return;
+      }
+
       console.log(c.cyan('\n✏️ Editing configuration...\n'));
       const editedConfig = await editConfig(config);
       if (JSON.stringify(editedConfig) !== JSON.stringify(config)) {
@@ -103,6 +110,13 @@ async function main() {
       handled = true;
     }
     else if (cmd === "examples") {
+      if (!config) {
+        console.log(c.red('❌ No configuration available. Please configure the agent first.'));
+        handled = true;
+        rl.prompt();
+        return;
+      }
+
       console.log(c.cyan('\n📋 Model examples by provider:'));
       for (const [provider, models] of Object.entries(MODEL_EXAMPLES)) {
         console.log(`   ${c.bold(provider)}: ${c.gray(models.join(', '))}`);
