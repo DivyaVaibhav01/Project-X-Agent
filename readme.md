@@ -2,7 +2,7 @@
 
 **Project X** is a CLI and Web-based AI terminal agent that supports interactive model execution, tool calling (reading, writing, and deleting local files), and parallel model race modes. Built for high performance using [Bun](https://bun.sh) and [Xterm.js](https://xtermjs.org/).
 
-> ```html
+```html ```
 ╔══════════════════════════════════════════════════════╗
 ║                          *                           ║
 ║                         /|\                          ║
@@ -17,7 +17,6 @@
 ║                   Project-X Agent                    ║
 ║  a compile of multiple modules, made by Vaibhav Dev  ║
 ╚══════════════════════════════════════════════════════╝
----
 
 ## 📸 Overview
 
