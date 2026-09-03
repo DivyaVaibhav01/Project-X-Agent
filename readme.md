@@ -103,7 +103,5 @@ You can execute prompts, interact with the agent, manage local files, and type e
 - **OpenAI Node SDK** – Official Node.js client for OpenAI APIs
 - 
 
-<img src="https://readme-typing-svg.demolab.com?font=Orbitron&weight=700&size=40&duration=3000&pause=1000&color=00FF88&center=true&vCenter=true&width=600&height=70&lines=⚡+PROJECT+X;AI+TERMINAL+AGENT;THE+FUTURE+IS+PARALLEL" alt="Project X Animated Header" />
-
 
 
