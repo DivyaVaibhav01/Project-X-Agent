@@ -120,13 +120,26 @@ flowchart TB
 ```
 
 
-## 📸 Overview
+# 📸 Overview
 
-![Project X Agent CLI Banner](https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-09-09.png?raw=true)
-*Project X running directly in the CLI terminal with Race Mode enabled.*
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-09-09.png?raw=true" alt="Project X CLI Terminal" width="90%">
+      <br>
+      <sub><b>💻 CLI Mode</b> · Race Mode Enabled</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-08-10.png?raw=true" alt="Project X Web Terminal" width="90%">
+      <br>
+      <sub><b>🌐 Web Mode</b> · WebSocket Terminal</sub>
+    </td>
+  </tr>
+</table>
 
-![Project X Agents Web Terminal Preview](https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-08-10.png?raw=true)
-*Project X running via WebSockets in the browser web terminal.*
+<p align="center">
+  <i>⚡ Project X running in CLI (left) and Browser Web Terminal (right) with Race Mode enabled</i>
+</p>
 
 # 🌐 Web Terminal Usage
 Once the server is running, open your browser and navigate to:
@@ -136,42 +149,49 @@ http://localhost:3001
 
 # ⚡ Race Mode Competition Flow
 ```mermaid
-sequenceDiagram
-    participant U as 👤 User
-    participant R as 🎯 Router
-    participant M1 as 🤖 GPT-4o
-    participant M2 as 🧠 Claude 3.5
-    participant M3 as 💡 Gemini
-    participant T as 🔧 Tools
-
-    U->>R: "Read file app.js"
-    activate R
+flowchart TD
+    Start([👤 User Sends Message]) --> Receive[📥 Receive User Query]
+    Receive --> Parse[🔍 Parse & Analyze Query]
+    Parse --> RaceStart[🏁 START RACE MODE]
     
-    par Race Mode - All Models
-        R->>M1: Query
-        activate M1
-        R->>M2: Query
-        activate M2
-        R->>M3: Query
-        activate M3
-    end
+    RaceStart --> Spawn1[🤖 Spawn Module 1: GPT-4o]
+    RaceStart --> Spawn2[🧠 Spawn Module 2: Claude 3.5]
+    RaceStart --> Spawn3[💡 Spawn Module 3: Gemini]
+    RaceStart --> Spawn4[🔄 Spawn Module 4: Llama 3]
     
-    M2-->>R: Response (1st) 🏆
-    deactivate M2
-    R->>T: Execute read_file
-    activate T
-    T-->>R: File content
-    deactivate T
-    R-->>U: Response (142ms)
-    deactivate R
+    Spawn1 --> Process1[Processing...]
+    Spawn2 --> Process2[Processing...]
+    Spawn3 --> Process3[Processing...]
+    Spawn4 --> Process4[Processing...]
     
-    M1-->>R: Response (2nd) 🥈
-    deactivate M1
-    M3-->>R: Response (3rd) 🥉
-    deactivate M3
+    Process1 --> Check1{Reply Ready?}
+    Process2 --> Check2{Reply Ready?}
+    Process3 --> Check3{Reply Ready?}
+    Process4 --> Check4{Reply Ready?}
     
-    Note over R: Cache responses for 5min
-
+    Check1 -->|No| Process1
+    Check2 -->|No| Process2
+    Check3 -->|No| Process3
+    Check4 -->|No| Process4
+    
+    Check1 -->|Yes 🥇| Winner[🏆 Module 1 Wins!]
+    Check2 -->|Yes 🥇| Winner
+    Check3 -->|Yes 🥇| Winner
+    Check4 -->|Yes 🥇| Winner
+    
+    Winner --> GetResponse[📨 Get Response from Winner]
+    GetResponse --> CancelOthers[⛔ Cancel Other Modules]
+    CancelOthers --> Validate[✅ Validate Response]
+    Validate --> Format[📝 Format Response]
+    Format --> Send[📤 Send Reply to User]
+    Send --> End([✅ User Receives Reply])
+    
+    style Start fill:#6BCF7F,color:#fff
+    style End fill:#4FC3F7,color:#fff
+    style RaceStart fill:#FF6B6B,color:#fff
+    style Winner fill:#FFD93D,color:#000
+    style Send fill:#6BCF7F,color:#fff
+    style CancelOthers fill:#FF8A80,color:#fff
 ```
 
 
