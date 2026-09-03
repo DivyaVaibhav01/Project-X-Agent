@@ -332,7 +332,6 @@ function simplePrompt(query: string): Promise<string> {
     });
   });
 }
-
 export async function promptUserForConfig(): Promise<Config> {
   console.log(c.cyan('\n🔧 First-time setup - Please configure Project-X Agent\n'));
   console.log(c.dim(`📦 Open-source project: ${REPO_URL}\n`));
@@ -395,6 +394,21 @@ export async function promptUserForConfig(): Promise<Config> {
 }
 
 export async function editConfig(config: Config): Promise<Config> {
+  const readline = require("node:readline");
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: false  // ← Prevents double echo
+  });
+
+  const question = (query: string): Promise<string> => {
+    return new Promise((resolve) => {
+      rl.question(query, (answer: string) => {
+        resolve(answer.trim());
+      });
+    });
+  };
+
   console.log(c.cyan('\n📝 Edit Configuration\n'));
   console.log(c.gray('Current configuration:'));
   console.log(`  ${c.bold('API Key:')} ${c.dim('•'.repeat(Math.min(config.API_KEY.length, 12)))}`);
@@ -411,13 +425,13 @@ export async function editConfig(config: Config): Promise<Config> {
   let validChoice = false;
   
   while (!validChoice) {
-    const rawChoice = await simplePrompt(c.yellow('Select option (1-5): '));
-    choice = rawChoice.trim().charAt(0);
+    const rawChoice = await question(c.yellow('Select option (1-5): '));
+    choice = rawChoice.charAt(0);
     
     if (['1', '2', '3', '4', '5'].includes(choice)) {
       validChoice = true;
     } else {
-      console.log(c.red(`❌ Invalid option. Please enter 1, 2, 3, 4, or 5`));
+      console.log(c.red(`❌ Invalid option "${rawChoice}". Please enter 1, 2, 3, 4, or 5`));
     }
   }
 
@@ -425,7 +439,7 @@ export async function editConfig(config: Config): Promise<Config> {
 
   switch (choice) {
     case '1': {
-      const newApiKey = await simplePrompt(c.yellow('Enter new API key: '));
+      const newApiKey = await question(c.yellow('Enter new API key: '));
       if (newApiKey.trim()) {
         newConfig.API_KEY = newApiKey.trim();
         console.log(c.green('✅ API key updated'));
@@ -435,7 +449,7 @@ export async function editConfig(config: Config): Promise<Config> {
       break;
     }
     case '2': {
-      const newEndpoint = await simplePrompt(c.yellow('Enter new endpoint: '));
+      const newEndpoint = await question(c.yellow('Enter new endpoint: '));
       if (newEndpoint.trim()) {
         newConfig.BASE_URL = newEndpoint.trim();
         console.log(c.green('✅ Endpoint updated'));
@@ -447,7 +461,7 @@ export async function editConfig(config: Config): Promise<Config> {
     case '3': {
       console.log(c.gray('\n💡 Enter models (comma or space separated):'));
       console.log(c.gray(`   Current: ${config.MODELS.join(', ')}`));
-      const modelsInput = await simplePrompt(c.yellow('Enter new models: '));
+      const modelsInput = await question(c.yellow('Enter new models: '));
       const rawModels = parseModels(modelsInput);
       if (rawModels.length > 0) {
         newConfig.MODELS = resolveModelAliases(rawModels);
@@ -460,15 +474,15 @@ export async function editConfig(config: Config): Promise<Config> {
     case '4': {
       console.log(c.cyan('\n🔄 Editing all fields...\n'));
       
-      const newApiKey = await simplePrompt(c.yellow('Enter new API key: '));
+      const newApiKey = await question(c.yellow('Enter new API key: '));
       if (newApiKey.trim()) newConfig.API_KEY = newApiKey.trim();
       
-      const newEndpoint = await simplePrompt(c.yellow('Enter new endpoint: '));
+      const newEndpoint = await question(c.yellow('Enter new endpoint: '));
       if (newEndpoint.trim()) newConfig.BASE_URL = newEndpoint.trim();
       
       console.log(c.gray('\n💡 Enter models (comma or space separated):'));
       console.log(c.gray(`   Current: ${config.MODELS.join(', ')}`));
-      const modelsInput = await simplePrompt(c.yellow('Enter new models: '));
+      const modelsInput = await question(c.yellow('Enter new models: '));
       const rawModels = parseModels(modelsInput);
       if (rawModels.length > 0) {
         newConfig.MODELS = resolveModelAliases(rawModels);
@@ -480,6 +494,7 @@ export async function editConfig(config: Config): Promise<Config> {
     case '5':
     default: {
       console.log(c.yellow('ℹ️ Edit cancelled'));
+      rl.close();
       return config;
     }
   }
@@ -490,14 +505,16 @@ export async function editConfig(config: Config): Promise<Config> {
   console.log(`  ${c.bold('Models:')} ${c.cyan(newConfig.MODELS.join(', '))}`);
   console.log(c.dim(`\n   📦 ${REPO_URL}`));
 
-  const saveInput = await simplePrompt(c.yellow('\nSave changes? (Y/n): '));
+  const saveInput = await question(c.yellow('\nSave changes? (Y/n): '));
   const save = saveInput.trim().toLowerCase();
   
   if (save === 'n' || save === 'no') {
     console.log(c.yellow('ℹ️ Changes discarded'));
+    rl.close();
     return config;
   }
 
+  rl.close();
   return newConfig;
 }
 
