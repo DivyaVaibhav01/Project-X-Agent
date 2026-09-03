@@ -1,15 +1,25 @@
-# ⚡ Project X — Web Terminal & AI Agent
+# ⚡ Project X Agent — Web Terminal & AI Agent
 
 **Project X** is a CLI and Web-based AI terminal agent that supports interactive model execution, tool calling (reading, writing, and deleting local files), and parallel model race modes. Built for high performance using [Bun](https://bun.sh) and [Xterm.js](https://xtermjs.org/).
 
-> *"a compile of multiple work in one, made by Vaibhav Dev"*
+> *"a compile of multiple modules, made by Vaibhav Dev"*
+
+---
+
+## 📸 Overview
+
+![Project X CLI Banner](https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-09-09.png?raw=true)
+*Project X running directly in the CLI terminal with Race Mode enabled.*
+
+![Project X Web Terminal Preview](https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-08-10.png?raw=true)
+*Project X running via WebSockets in the browser web terminal.*
 
 ---
 
 ## ✨ Features
 
 - **Dual Terminal Access**: Runs natively in your OS terminal console or directly in the browser via WebSockets.
-- **Interactive Setup Wizard**: Prompts for API Endpoint, API Key, and Models on first run.
+- **Interactive Setup Wizard**: Prompts for API Endpoint, API Key, and Models on first run and generates `.env` automatically.
 - **Adaptive Model Execution**:
   - **1 Model**: Executes standard single-model API completion.
   - **2+ Models**: Triggers **Race Mode**, querying multiple models concurrently and returning whichever responds first.
