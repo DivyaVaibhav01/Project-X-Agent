@@ -2,30 +2,6 @@
 
 **Project X** is a CLI and Web-based AI terminal agent that supports interactive model execution, tool calling (reading, writing, and deleting local files), and parallel model race modes. Built for high performance using [Bun](https://bun.sh) and [Xterm.js](https://xtermjs.org/).
 
-```html ```
-╔══════════════════════════════════════════════════════╗
-║                          *                           ║
-║                         /|\                          ║
-║                     *  / | \  *                      ║
-║                    \| /  |  \ |/                     ║
-║                   --*----+----*--                    ║
-║                    /| \  |  / |\                     ║
-║                     *  \ | /  *                      ║
-║                         \|/                          ║
-║                          *                           ║
-║                                                      ║
-║                   Project-X Agent                    ║
-║  a compile of multiple modules, made by Vaibhav Dev  ║
-╚══════════════════════════════════════════════════════╝
-
-## 📸 Overview
-
-![Project X CLI Banner](https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-09-09.png?raw=true)
-*Project X running directly in the CLI terminal with Race Mode enabled.*
-
-![Project X Web Terminal Preview](https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-08-10.png?raw=true)
-*Project X running via WebSockets in the browser web terminal.*
-
 ---
 
 ## ✨ Features
@@ -43,6 +19,14 @@
 - **Rate Limiting**: Built-in request throttle control to protect API quotas.
 
 ---
+
+## 📸 Overview
+
+![Project X CLI Banner](https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-09-09.png?raw=true)
+*Project X running directly in the CLI terminal with Race Mode enabled.*
+
+![Project X Web Terminal Preview](https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-08-10.png?raw=true)
+*Project X running via WebSockets in the browser web terminal.*
 
 ## 📋 Prerequisites
 
