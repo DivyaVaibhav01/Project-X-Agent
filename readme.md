@@ -37,9 +37,7 @@ powershell -c "irm https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Ag
 
 ---
 
-## 🧠 How It Works
-
-### Architecture Flow
+# 🧠 How It Works?
 
 ```mermaid
 flowchart TB
