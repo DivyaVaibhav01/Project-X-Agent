@@ -99,7 +99,8 @@ You can execute prompts, interact with the agent, manage local files, and type e
 - **Bun** – JavaScript runtime & package manager  
 - **Xterm.js** – Terminal emulator for the browser  
 - **OpenAI Node SDK** – Official Node.js client for OpenAI APIs
-- 
 
+
+### Made with ❤️ VaibhavDev
 
 
