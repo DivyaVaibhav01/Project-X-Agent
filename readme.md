@@ -133,7 +133,46 @@ Once the server is running, open your browser and navigate to:
 ```bash
 http://localhost:3001
 ```
-You can execute prompts, interact with the agent, manage local files, and type exit or quit to end your session
+
+# ⚡ Race Mode Competition Flow
+```mermaid
+sequenceDiagram
+    participant U as 👤 User
+    participant R as 🎯 Router
+    participant M1 as 🤖 GPT-4o
+    participant M2 as 🧠 Claude 3.5
+    participant M3 as 💡 Gemini
+    participant T as 🔧 Tools
+
+    U->>R: "Read file app.js"
+    activate R
+    
+    par Race Mode - All Models
+        R->>M1: Query
+        activate M1
+        R->>M2: Query
+        activate M2
+        R->>M3: Query
+        activate M3
+    end
+    
+    M2-->>R: Response (1st) 🏆
+    deactivate M2
+    R->>T: Execute read_file
+    activate T
+    T-->>R: File content
+    deactivate T
+    R-->>U: Response (142ms)
+    deactivate R
+    
+    M1-->>R: Response (2nd) 🥈
+    deactivate M1
+    M3-->>R: Response (3rd) 🥉
+    deactivate M3
+    
+    Note over R: Cache responses for 5min
+
+```
 
 
 ### 🛠️ Built With
