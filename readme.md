@@ -194,15 +194,41 @@ flowchart TD
     style CancelOthers fill:#FF8A80,color:#fff
 ```
 
+#🔄 Module Interaction Flow
+```mermaid
+flowchart LR
+    subgraph Modules["📦 Project-X Modules"]
+        direction TB
 
-### 🛠️ Built With
 
-| Source | Worker |
-|------------|--------------|
-| **Runtime & Server** | [<img src="https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white" alt="Bun" />](https://bun.sh) |
-| **Frontend Terminal** | [![Xterm.js](https://img.shields.io/badge/xterm.js-20232A?style=for-the-badge&logo=xterm&logoColor=white)](https://xtermjs.org) |
-| **AI Provider Client** | [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)](https://www.npmjs.com/package/openai) |
-
+        
+        subgraph Backend["🖥️ Backend"]
+            Bun["⚡ Bun Server"]
+        end
+        
+        subgraph Frontend["🖥️ Frontend"]
+            Xterm["🎨 Xterm.js"]
+        end
+        
+        subgraph AI["🧠 AI Layer"]
+            OpenAI["🤖 OpenAI Client"]
+        end
+    end
+    
+    User["👤 User"] -->|Uses| Xterm
+    Xterm -->|WebSocket| Bun
+    Bun -->|API Calls| OpenAI
+    OpenAI -->|Models| GPT["GPT-4o<br>Claude<br>Gemini"]
+    GPT -->|Responses| Bun
+    Bun -->|Real-time| Xterm
+    Xterm -->|Display| User
+    
+    style Modules fill:#0a0e17,stroke:#00d4ff,color:#e6f1ff
+    style Backend fill:#1a2a3f,stroke:#4fc3f7
+    style Frontend fill:#1a2a3f,stroke:#ffd93d
+    style AI fill:#1a2a3f,stroke:#6bcf7f
+    style User fill:#FFD93D,color:#000
+```
 
 ### Made with ❤️ VaibhavDev
 
