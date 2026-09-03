@@ -1,37 +1,33 @@
-# ⚡ Project X Agent — Web Terminal & AI Agent
 
-**Project X** is a CLI and Web-based AI terminal agent that supports interactive model execution, tool calling (reading, writing, and deleting local files), and parallel model race modes. Built for high performance using [Bun](https://bun.sh) and [Xterm.js](https://xtermjs.org/).
+### 🚀 Web-Based AI Terminal with Parallel Model Execution
 
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Click_Here-00ff88?style=for-the-badge&labelColor=0a0a0a)](https://your-demo-link.com)
+[![Documentation](https://img.shields.io/badge/📖_Docs-Read-00d4ff?style=for-the-badge&labelColor=0a0a0a)](https://docs.your-project.com)
 
-# 🧠 How it works?
+</div>
 
-flowchart LR
-    A[User Input] --> B{Model Count}
-    B -->|1 Model| C[Single Mode]
-    B -->|2+ Models| D[Race Mode]
-    C --> E[API Response]
-    D --> F[Parallel Requests]
-    F --> G[First Response Wins]
-    E --> H[Tool Calling]
-    G --> H
-    H --> I[File Operations]
-    I --> J[Terminal Output]
-    
 ---
 
-## ✨ Features
+## 🌌 The Next Generation AI Terminal
 
-- **Dual Terminal Access**: Runs natively in your OS terminal console or directly in the browser via WebSockets.
-- **Interactive Setup Wizard**: Prompts for API Endpoint, API Key, and Models on first run and generates `.env` automatically.
-- **Adaptive Model Execution**:
-  - **1 Model**: Executes standard single-model API completion.
-  - **2+ Models**: Triggers **Race Mode**, querying multiple models concurrently and returning whichever responds first.
-- **Integrated Tool Calling**: Perform file actions directly through the agent:
-  - `read_file` — Reads local files.
-  - `write_file` — Creates or edits files.
-  - `delete_file` — Safely deletes specified files with explicit confirmation.
-- **ANSI & Markdown Code Styling**: Custom terminal code block rendering with language labels and syntax framing.
-- **Rate Limiting**: Built-in request throttle control to protect API quotas.
+**Project X** isn't just another AI wrapper — it's a **high-velocity, dual-environment AI agent** that brings the power of parallel model execution to your fingertips. Whether you're in your native CLI or a browser-based terminal, Project X delivers **blazing-fast** AI interactions with built-in tool calling and real-time file system operations.
+
+> **⚡ "Speed meets intelligence — where milliseconds decide the winner."**
+
+---
+
+## ✨ Quantum Features
+
+| Feature | Description |
+|---------|-------------|
+| 🖥️ **Dual Terminal Access** | Run natively in your OS terminal or browser via WebSockets |
+| 🔄 **Race Mode** | Query 2+ AI models simultaneously — the fastest wins |
+| 🎯 **Single Mode** | Standard single-model execution for precision tasks |
+| 📂 **Tool Calling** | `read_file`, `write_file`, `delete_file` with safety confirmations |
+| 🎨 **ANSI + Markdown** | Beautiful terminal rendering with syntax highlighting |
+| 🛡️ **Rate Limiting** | Built-in quota protection to prevent overages |
+| ⚡ **Zero-Config Setup** | Interactive wizard generates `.env` automatically |
+| 🔐 **Secure** | API keys never exposed — stored locally only |
 
 ---
 
