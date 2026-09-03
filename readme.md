@@ -1,5 +1,5 @@
 
-## 🌌 The Next Generation AI Terminal
+## 🌌 The Next Generation AI Terminal Project-X Agent
 
 **Project X Agent** isn't just another AI wrapper — it's a **high-velocity, dual-environment AI agent** that brings the power of parallel model execution to your fingertips. Whether you're in your native CLI or a browser-based terminal, Project X delivers **blazing-fast** AI interactions with built-in tool calling and real-time file system operations.
 
