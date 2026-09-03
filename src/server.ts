@@ -7,7 +7,7 @@ import os from 'os';
 
 import { createSession, renderBanner, c, loadConfig, saveConfig, REPO_URL } from './agent.js';
 
-const PORT = Number(process.env?.PORT || 3000);
+const PORT = Number(process.env?.PORT || 3001);
 const PROMPT = `${c.magenta("You")} ${c.gray("›")} `;
 
 // ← ADD THIS FUNCTION to get local IP
@@ -34,8 +34,8 @@ if (!config) {
   console.log(c.yellow('\n⚠️  No configuration found. Using environment variables or defaults...\n'));
   
   const apiKey = process.env?.NARAYA_API_KEY || process.env?.OPENAI_API_KEY || '';
-  const baseURL = process.env?.BASE_URL || 'https://router.bynara.id/v1';
-  const modelsInput = process.env?.MODELS || 'gpt-4,claude-3-opus';
+  const baseURL = process.env?.BASE_URL || '';
+  const modelsInput = process.env?.MODELS || '';
   const models = modelsInput.split(',').map((m: string) => m.trim()).filter((m: string) => m.length > 0);
   
   if (apiKey && models.length > 0) {
@@ -48,8 +48,8 @@ if (!config) {
     console.log(c.green('✅ Configuration created from environment variables'));
   } else {
     console.log(c.red('❌ No configuration found. Please set environment variables or run the CLI first.'));
-    console.log(c.gray('   Required: NARAYA_API_KEY, MODELS'));
-    console.log(c.gray('   Optional: BASE_URL (default: https://router.bynara.id/v1)'));
+    console.log(c.gray('   Required: API_KEY, MODELS'));
+    console.log(c.gray('   Optional: BASE_URL'));
     console.log(c.dim(`   📦 ${REPO_URL}`));
     process.exit(1);
   }
