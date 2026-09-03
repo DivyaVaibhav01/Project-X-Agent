@@ -7,6 +7,16 @@
 
 ---
 
+
+## ⚡ Quick One-Line Installation
+
+Launch Project X instantly with a single command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Agent/main/install.sh | bash
+```
+
+
 ## ✨ Quantum Features
 
 | Feature | Description |
@@ -65,16 +75,6 @@ flowchart TB
 
 ![Project X Agents Web Terminal Preview](https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-08-10.png?raw=true)
 *Project X running via WebSockets in the browser web terminal.*
-
-## ⚡ Quick One-Line Installation
-
-Install Bun (if missing), clone the repository, set up dependencies, and launch Project X instantly with a single command:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Agent/main/install.sh | bash
-
-```
-
 
 # 🌐 Web Terminal Usage
 Once the server is running, open your browser and navigate to:
