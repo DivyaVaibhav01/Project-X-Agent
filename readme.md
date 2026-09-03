@@ -1,98 +1,33 @@
-# 🚀 PROJECT-X
-## Neural Interface Terminal v2.0
+# ⚡ Project X — Web Terminal & AI Agent
 
-╔══════════════════════════════════════════════════════════════╗
-║ ║
-║ ██████ ██████ ██ ██ ███████ ║
-║ ██ ██ ██ ██ ██ ██ ║
-║ ██ ██ ██ ██ ██ ███████ ║
-║ ██ ██ ██ ██ ██ ██ ║
-║ ██████ ██████ ████ ███████ ║
-║ ║
-║ a compile of multiple modules, made by Vaibhav Dev ║
-╚══════════════════════════════════════════════════════════════╝
+**Project X** is a CLI and Web-based AI terminal agent that supports interactive model execution, tool calling (reading, writing, and deleting local files), and parallel model race modes. Built for high performance using [Bun](https://bun.sh) and [Xterm.js](https://xtermjs.org/).
 
-
-[![Bun](https://img.shields.io/badge/Bun-1.3.14+-fbf0df?style=for-the-badge&logo=bun&logoColor=black)](https://bun.sh)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/DivyaVaibhav01/Project-X-Agent?style=for-the-badge)](https://github.com/DivyaVaibhav01/Project-X-Agent/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/DivyaVaibhav01/Project-X-Agent?style=for-the-badge)](https://github.com/DivyaVaibhav01/Project-X-Agent/forks)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=for-the-badge)](https://github.com/DivyaVaibhav01/Project-X-Agent/pulls)
+> *"a compile of multiple work in one, made by Vaibhav Dev"*
 
 ---
 
-## 🪐 The Future of AI Assistants
+## ✨ Features
 
-> *"In a world where time is the ultimate currency, Project-X harnesses the power of parallel neural networks to deliver answers at the speed of thought."*
-
-**Project-X Agent** is not just another AI assistant—it's a quantum leap in how we interact with artificial intelligence. By racing multiple AI models simultaneously, it ensures you always get the fastest response without compromising on intelligence.
-
-### 🌟 Key Capabilities
-
-| Capability | Description |
-|------------|-------------|
-| **⚡ Neural Racing** | Deploy multiple AI models in parallel, use the fastest responder |
-| **📁 File System Control** | Read, write, and delete files through quantum commands |
-| **🌐 Universal Access** | Web-based neural interface accessible from any browser |
-| **🔧 Self-Configuring** | Adaptive learning system that remembers your preferences |
-| **🎨 Holo-UI** | Beautiful terminal interface with ASCII holographic projections |
+- **Dual Terminal Access**: Runs natively in your OS terminal console or directly in the browser via WebSockets.
+- **Interactive Setup Wizard**: Prompts for API Endpoint, API Key, and Models on first run.
+- **Adaptive Model Execution**:
+  - **1 Model**: Executes standard single-model API completion.
+  - **2+ Models**: Triggers **Race Mode**, querying multiple models concurrently and returning whichever responds first.
+- **Integrated Tool Calling**: Perform file actions directly through the agent:
+  - `read_file` — Reads local files.
+  - `write_file` — Creates or edits files.
+  - `delete_file` — Safely deletes specified files with explicit confirmation.
+- **ANSI & Markdown Code Styling**: Custom terminal code block rendering with language labels and syntax framing.
+- **Rate Limiting**: Built-in request throttle control to protect API quotas.
 
 ---
 
-## 📡 System Requirements
+## 📋 Prerequisites
 
-### Core Neural Engine
+You must have **[Bun](https://bun.sh)** installed on your machine before running this project.
 
-<div align="center">
-  <img src="https://bun.sh/logo.svg" alt="Bun Engine" width="100"/>
-  <br/>
-  <strong>Neural Runtime Engine: Bun v1.3.14+</strong>
-</div>
+### Installing Bun
 
-> **⚠️ WARNING**: This system requires the Bun quantum runtime engine. Without it, the neural pathways cannot be initialized.
-
-#### 🚀 Installing the Bun Engine
-
+**macOS / Linux / WSL:**
 ```bash
-# Initiate neural engine download (macOS/Linux)
-curl -fsSL https://bun.sh/install | bash
-
-# Windows Neural Interface (PowerShell)
-powershell -c "irm bun.sh/install.ps1 | iex"
-
-
-Verify Neural Synchronization:
-```
-bun --version
-```
-# Output should read: 1.3.14 or higher
-
-
-🔬 Installation Protocol
-```
-# Clone the neural repository
-git clone https://github.com/DivyaVaibhav01/Project-X-Agent.git
-
-# Enter the neural chamber
-cd Project-X-Agent
-
-# Initialize quantum dependencies
-bun install
-```
-
-🎮 Neural Interface Activation
-
-```
-# Activate the primary neural interface
-bun run agent
-
-# Or initiate the development quantum link
-bun run dev```
-
-
-
-
-
-
-# Via npm (alternate quantum channel)
-npm install -g bun
+curl -fsSL [https://bun.sh/install](https://bun.sh/install) | bash``
