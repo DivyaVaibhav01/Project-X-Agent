@@ -72,11 +72,10 @@ You can execute prompts, interact with the agent, manage local files, and type e
 
 
 # 🛠️ Built With
-```
 Runtime & Server: Bun
 Frontend Terminal: Xterm.js
 AI Provider Client: OpenAI Node SDK
-```
+
 
 
 
