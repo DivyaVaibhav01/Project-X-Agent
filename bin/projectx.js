@@ -44,7 +44,7 @@ async function main() {
     }
 
     // Handle delete/uninstall
-    if (command === 'delete' || command === 'uninstall') {
+    if (command === 'delete' || command === 'uninstall' || command === 'remove' || command === 'del') {
         console.log('\x1b[31m⚠️  WARNING: You are about to delete Project-X Agent\x1b[0m');
         console.log('\x1b[33mThis will remove the entire Project-X directory and global command.\x1b[0m');
         console.log('');
@@ -57,7 +57,7 @@ async function main() {
         rl.question('\x1b[33mAre you sure you want to continue? (yes/no): \x1b[0m', (answer) => {
             rl.close();
             
-            if (answer.toLowerCase() !== 'yes') {
+            if (answer.toLowerCase() !== 'yes' || "y") {
                 console.log('\x1b[32m✅ Uninstall cancelled.\x1b[0m');
                 process.exit(0);
             }
@@ -83,7 +83,8 @@ async function main() {
                 console.log('');
                 console.log('\x1b[32m✅ Project-X has been successfully uninstalled!\x1b[0m');
                 console.log('\x1b[90m   You can reinstall with:\x1b[0m');
-                console.log('\x1b[36m   curl -fsSL https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Agent/main/install.sh | bash\x1b[0m');
+                console.log('\x1b[36m 🐧 Linux and 🍎 macOS: curl -fsSL curl -fsSL https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Agent/main/install/all/install.sh | bash\x1b[0m');
+                console.log('\x1b[36m 🪟 Windows: powershell -c "irm https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Agent/main/install/windows/install.ps1 | iex"\x1b[0m');
                 console.log('');
                 
                 process.exit(0);
