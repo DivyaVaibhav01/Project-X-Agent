@@ -15,9 +15,9 @@
     "typescript": "^5.0.0"
   },
   "scripts": {
-    "agent": "bun run run.ts",
-    "dev": "bun run index.ts",
-    "server": "bun run server.ts"
+    "agent": "bun run src/run.ts",
+    "dev": "bun run src/index.ts",
+    "server": "bun run src/server.ts"
   },
   "author": "Vaibhav Dev",
   "license": "MIT",

@@ -32,7 +32,72 @@ fi
 echo -e "\033[34m🛠️ Installing project dependencies with Bun...\033[0m"
 bun install
 
-# 4. Create bin directory and binary
+# 4. Create src directory if it doesn't exist
+echo -e "\033[34m📁 Setting up src directory...\033[0m"
+mkdir -p src
+
+# 5. Move all .ts files to src/ if they're in root
+for file in *.ts; do
+    if [ -f "$file" ] && [ ! -f "src/$file" ]; then
+        echo -e "\033[90m  Moving $file to src/\033[0m"
+        mv "$file" "src/"
+    fi
+done
+
+# 6. Create src/run.ts if it doesn't exist
+if [ ! -f "src/run.ts" ]; then
+    echo -e "\033[34m📝 Creating src/run.ts...\033[0m"
+    cat > src/run.ts << 'EOF'
+#!/usr/bin/env bun
+
+declare const Bun: any;
+declare const process: any;
+
+declare global {
+  interface ImportMeta {
+    readonly dir: string;
+  }
+}
+
+import fs from 'fs';
+import path from 'path';
+
+const projectRoot = path.join(import.meta.dir, '..');
+
+// Check if .env exists before starting
+const envPath = path.join(projectRoot, '.env');
+if (!fs.existsSync(envPath)) {
+  console.log('\x1b[33m⚠️  No .env file found. The CLI will prompt for configuration.\x1b[0m\n');
+}
+
+// Start server in background
+const server = Bun.spawn(["bun", "run", "src/server.ts"], {
+  stdout: "inherit",
+  stderr: "inherit",
+  cwd: projectRoot,
+});
+
+console.log(`\x1b[90m  (web terminal starting in background — check the URL it prints)\x1b[0m\n`);
+
+// Give the server a moment to boot
+await new Promise((r) => setTimeout(r, 400));
+
+// Start CLI
+const cli = Bun.spawn(["bun", "run", "src/index.ts"], {
+  stdin: "inherit",
+  stdout: "inherit",
+  stderr: "inherit",
+  cwd: projectRoot,
+});
+
+// If CLI exits, kill server too
+await cli.exited;
+server.kill();
+process.exit(0);
+EOF
+fi
+
+# 7. Create bin directory and binary
 echo -e "\033[34m🔧 Creating global command '${BIN_NAME}'...\033[0m"
 mkdir -p bin
 
@@ -45,30 +110,27 @@ import { existsSync, rmSync } from 'fs';
 import { execSync } from 'child_process';
 import readline from 'readline';
 
-// Get the directory where this script is located
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const projectRoot = join(__dirname, '..');
 
-// Check if project exists
-if (!existsSync(join(projectRoot, 'dev.ts'))) {
+const entryFile = join(projectRoot, 'src', 'run.ts');
+
+if (!existsSync(entryFile)) {
     console.error('\x1b[31m❌ Project-X not found in:', projectRoot);
     console.error('\x1b[33m💡 Please reinstall Project-X or check the installation path.\x1b[0m');
+    console.error('\x1b[33m💡 Looking for: src/run.ts\x1b[0m');
     process.exit(1);
 }
 
-// Parse command line arguments
 const args = process.argv.slice(2);
 const command = args[0];
 
-// Main function to handle everything
 async function main() {
-    // If no command or help command, start the agent (default behavior)
     if (!command || command === 'help') {
-        // Start the agent
         process.chdir(projectRoot);
         console.log('\x1b[36m🚀 Starting Project-X Agent...\x1b[0m\n');
         
-        const proc = Bun.spawn(['bun', 'run', 'dev.ts'], {
+        const proc = Bun.spawn(['bun', 'run', 'src/run.ts'], {
             cwd: projectRoot,
             stdin: 'inherit',
             stdout: 'inherit',
@@ -80,7 +142,6 @@ async function main() {
         return;
     }
 
-    // Handle delete/uninstall
     if (command === 'delete' || command === 'uninstall') {
         console.log('\x1b[31m⚠️  WARNING: You are about to delete Project-X Agent\x1b[0m');
         console.log('\x1b[33mThis will remove the entire Project-X directory and global command.\x1b[0m');
@@ -134,7 +195,6 @@ async function main() {
         return;
     }
 
-    // If we get here, it's an unknown command
     console.log('\x1b[36m🚀 Project-X Agent\x1b[0m');
     console.log('');
     console.log('\x1b[90mUsage:\x1b[0m');
@@ -146,7 +206,6 @@ async function main() {
     process.exit(0);
 }
 
-// Run the main function
 main().catch((error) => {
     console.error('\x1b[31m❌ Error:\x1b[0m', error.message);
     process.exit(1);
@@ -155,11 +214,11 @@ EOF
 
 chmod +x bin/projectx.js
 
-# 5. Link globally
+# 8. Link globally
 echo -e "\033[34m🔗 Linking global command...\033[0m"
 bun link
 
-# 6. Add to PATH if needed
+# 9. Add to PATH if needed
 BUN_GLOBAL_BIN="$HOME/.bun/bin"
 if [[ ":$PATH:" != *":$BUN_GLOBAL_BIN:"* ]]; then
     echo -e "\033[33m⚠️ Adding Bun global bin to PATH...\033[0m"
@@ -170,7 +229,7 @@ fi
 
 clear
 
-# 7. Show success message
+# 10. Show success message
 echo -e "\033[36m╔══════════════════════════════════════════════════════════════╗\033[0m"
 echo -e "\033[36m║                                                             ║\033[0m"
 echo -e "\033[36m║         \033[1;32m✅ Project-X Agent Installed Successfully!\033[0m\033[36m         ║\033[0m"

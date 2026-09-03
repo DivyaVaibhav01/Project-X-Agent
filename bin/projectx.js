@@ -10,14 +10,13 @@ import readline from 'readline';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const projectRoot = join(__dirname, '..');
 
-// Check for run.ts in src folder
-const entryFile = existsSync(join(projectRoot, 'src', 'run.ts')) ? 'src/run.ts' : 'run.ts';
-const entryPath = join(projectRoot, entryFile);
+// Check if project exists - look in src/ for run.ts
+const entryFile = join(projectRoot, 'src', 'run.ts');
 
-if (!existsSync(entryPath)) {
+if (!existsSync(entryFile)) {
     console.error('\x1b[31m❌ Project-X not found in:', projectRoot);
     console.error('\x1b[33m💡 Please reinstall Project-X or check the installation path.\x1b[0m');
-    console.error('\x1b[33m💡 Looking for: src/run.ts or run.ts\x1b[0m');
+    console.error('\x1b[33m💡 Looking for: src/run.ts\x1b[0m');
     process.exit(1);
 }
 
@@ -32,7 +31,7 @@ async function main() {
         process.chdir(projectRoot);
         console.log('\x1b[36m🚀 Starting Project-X Agent...\x1b[0m\n');
         
-        const proc = Bun.spawn(['bun', 'run', entryFile], {
+        const proc = Bun.spawn(['bun', 'run', 'src/run.ts'], {
             cwd: projectRoot,
             stdin: 'inherit',
             stdout: 'inherit',
