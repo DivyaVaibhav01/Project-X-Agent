@@ -10,10 +10,14 @@ import readline from 'readline';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const projectRoot = join(__dirname, '..');
 
-// Check if project exists
-if (!existsSync(join(projectRoot, 'run.ts'))) {
+// Check for run.ts in src folder
+const entryFile = existsSync(join(projectRoot, 'src', 'run.ts')) ? 'src/run.ts' : 'run.ts';
+const entryPath = join(projectRoot, entryFile);
+
+if (!existsSync(entryPath)) {
     console.error('\x1b[31m❌ Project-X not found in:', projectRoot);
     console.error('\x1b[33m💡 Please reinstall Project-X or check the installation path.\x1b[0m');
+    console.error('\x1b[33m💡 Looking for: src/run.ts or run.ts\x1b[0m');
     process.exit(1);
 }
 
@@ -25,11 +29,10 @@ const command = args[0];
 async function main() {
     // If no command or help command, start the agent (default behavior)
     if (!command || command === 'help') {
-        // Start the agent
         process.chdir(projectRoot);
         console.log('\x1b[36m🚀 Starting Project-X Agent...\x1b[0m\n');
         
-        const proc = Bun.spawn(['bun', 'run', 'run.ts'], {
+        const proc = Bun.spawn(['bun', 'run', entryFile], {
             cwd: projectRoot,
             stdin: 'inherit',
             stdout: 'inherit',
@@ -66,9 +69,7 @@ async function main() {
                 console.log('\x1b[90m  Removing global command...\x1b[0m');
                 try {
                     execSync('bun unlink', { cwd: projectRoot, stdio: 'pipe' });
-                } catch (e) {
-                    // Ignore if unlink fails
-                }
+                } catch (e) {}
                 
                 console.log('\x1b[90m  Removing project files...\x1b[0m');
                 const projectName = projectRoot.split('/').pop();
