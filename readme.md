@@ -194,7 +194,7 @@ flowchart TD
     style CancelOthers fill:#FF8A80,color:#fff
 ```
 
-#🔄 Module Interaction Flow
+# 🔄 Module Interaction Flow
 ```mermaid
 flowchart LR
     subgraph Modules["📦 Project-X Modules"]
