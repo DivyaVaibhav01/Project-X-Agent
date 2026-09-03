@@ -3,11 +3,25 @@ declare const Bun: any;
 
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 import { createSession, renderBanner, c, loadConfig, saveConfig, REPO_URL } from './agent.js';
 
-const PORT = Number(process.env?.PORT || 3001);
+const PORT = Number(process.env?.PORT || 3000);
 const PROMPT = `${c.magenta("You")} ${c.gray("›")} `;
+
+// ← ADD THIS FUNCTION to get local IP
+function getLocalIP(): string {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return '0.0.0.0';
+}
 
 // Per-connection input buffer
 type Conn = { buffer: string; session: ReturnType<typeof createSession> };
@@ -45,8 +59,12 @@ if (!config) {
   console.log(`   Models: ${c.cyan(config.MODELS.join(', '))}`);
 }
 
+// ← ADD THIS to get local IP
+const localIP = getLocalIP();
+
 Bun.serve({
   port: PORT,
+  hostname: '0.0.0.0',  // ✅ Already have this
   fetch(req: any, server: any) {
     const url = new URL(req.url);
 
@@ -109,7 +127,10 @@ Bun.serve({
   },
 });
 
-console.log(`\n🚀 Project X web terminal running at http://localhost:${PORT}`);
+// ← UPDATE THIS to show both local and network URLs
+console.log(`\n\x1b[32m✅ Project X Agent web terminal running!\x1b[0m`);
+console.log(c.gray(`   📍 Local: http://localhost:${PORT}`));
+console.log(c.gray(`   📍 Network: http://${localIP}:${PORT}`));
 console.log(c.gray(`   Using ${config.MODELS.length} model${config.MODELS.length > 1 ? 's' : ''}: ${config.MODELS.join(', ')}`));
 console.log(c.dim(`   📦 ${REPO_URL}`));
 console.log(c.gray(`   Press Ctrl+C to stop the server\n`));
