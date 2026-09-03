@@ -1,12 +1,24 @@
 {
   "name": "project-x",
+  "version": "1.0.0",
+  "description": "Project-X Agent - Multi-model AI assistant with neural racing",
   "bin": {
     "project-x": "./bin/project-x"
   },
   "dependencies": {
-    "@types/bun": "^1.4.0"
+    "@types/bun": "^1.4.0",
+    "openai": "^4.0.0"
   },
   "scripts": {
-    "agent": "bun run dev.ts"
+    "agent": "bun run dev.ts",
+    "dev": "bun run dev.ts",
+    "server": "bun run server.ts",
+    "start": "bun run index.ts"
+  },
+  "author": "Vaibhav Dev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DivyaVaibhav01/Project-X-Agent"
   }
 }
