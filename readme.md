@@ -30,4 +30,53 @@ You must have **[Bun](https://bun.sh)** installed on your machine before running
 
 **macOS / Linux / WSL:**
 ```bash
-curl -fsSL [https://bun.sh/install](https://bun.sh/install) | bash``
+curl -fsSL [https://bun.sh/install](https://bun.sh/install) | bash
+```
+
+## Windows (Powershell):
+```bash
+powershell -c "irm bun.sh/install.ps1 | iex"
+```
+
+## Verify installation:
+```bash
+bun --version`
+```
+
+# 🚀 Getting Started
+
+## 1. Download Projext-X-Agent
+```bash
+git clone [https://github.com/DivyaVaibhav01/project-x.git](https://github.com/DivyaVaibhav01/project-x.git)
+cd project-x
+```
+
+## 2. Install Dependencies
+
+```bash
+bun install
+```
+
+
+## 3. Run the Agent
+```bash
+bun run agent
+```
+
+# 🌐 Web Terminal Usage
+Once the server is running, open your browser and navigate to:
+```bash
+http://localhost:3001
+```
+You can execute prompts, interact with the agent, manage local files, and type exit or quit to end your session
+
+
+# 🛠️ Built With
+```
+Runtime & Server: Bun
+Frontend Terminal: Xterm.js
+AI Provider Client: OpenAI Node SDK
+```
+
+
+
