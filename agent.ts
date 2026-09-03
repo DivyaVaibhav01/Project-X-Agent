@@ -2,7 +2,11 @@ import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
 
-// Color utilities
+export interface Config {
+  API_KEY: string;
+  BASE_URL: string;
+  MODELS: string[];
+}
 export const c = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
   bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
@@ -19,6 +23,7 @@ export const c = {
 export const BRAND = "Project-X Agent";
 export const TAGLINE = "a compile of multiple modules, made by Vaibhav Dev";
 export const REPO_URL = "https://github.com/DivyaVaibhav01/Project-X-Agent";
+const CONFIG_PATH: any = path.join(process.cwd(), '.env');
 
 // Model aliases - map user-friendly names to actual model names
 export const MODEL_ALIASES: Record<string, string> = {
@@ -309,44 +314,22 @@ MODELS=${config.MODELS.join(',')}
 
 # Report issues or contribute: ${REPO_URL}
 `;
-  fs.writeFileSync(CONFIG_FILE, content, 'utf-8');
-  console.log(c.green(`✅ Configuration saved to ${CONFIG_FILE}`));
+  fs.writeFileSync(CONFIG_PATH, content, 'utf-8');
+  console.log(c.green(`✅ Configuration saved to ${CONFIG_PATH}`));
 }
 
-// Simple prompt function to avoid double character issue
 function simplePrompt(query: string): Promise<string> {
   return new Promise((resolve) => {
-    process.stdout.write(query);
+    const readline = require("node:readline");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
     
-    const stdin = process.stdin;
-    const wasRaw = stdin.isRaw;
-    stdin.setRawMode(true);
-    stdin.resume();
-    stdin.setEncoding('utf8');
-    
-    let input = '';
-    
-    const onData = (chunk: Buffer) => {
-      const char = chunk.toString();
-      
-      if (char === '\r' || char === '\n') {
-        stdin.removeListener('data', onData);
-        stdin.setRawMode(wasRaw);
-        stdin.pause();
-        process.stdout.write('\n');
-        resolve(input);
-      } else if (char === '\u007f' || char === '\b') {
-        if (input.length > 0) {
-          input = input.slice(0, -1);
-          process.stdout.write('\b \b');
-        }
-      } else if (char.charCodeAt(0) >= 32) {
-        input += char;
-        process.stdout.write(char);
-      }
-    };
-    
-    stdin.on('data', onData);
+    rl.question(query, (answer: string) => {
+      rl.close();
+      resolve(answer);
+    });
   });
 }
 
