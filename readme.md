@@ -12,7 +12,7 @@
 
 Launch Project X instantly with a single command:
 
-#### Linux, mac Installation...
+#### 🐧 Linux and 🍎 macOS Installation...
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Agent/main/install.sh | bash
 ```
