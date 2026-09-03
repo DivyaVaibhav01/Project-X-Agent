@@ -2,6 +2,21 @@
 
 **Project X** is a CLI and Web-based AI terminal agent that supports interactive model execution, tool calling (reading, writing, and deleting local files), and parallel model race modes. Built for high performance using [Bun](https://bun.sh) and [Xterm.js](https://xtermjs.org/).
 
+
+# 🧠 How it works?
+
+flowchart LR
+    A[User Input] --> B{Model Count}
+    B -->|1 Model| C[Single Mode]
+    B -->|2+ Models| D[Race Mode]
+    C --> E[API Response]
+    D --> F[Parallel Requests]
+    F --> G[First Response Wins]
+    E --> H[Tool Calling]
+    G --> H
+    H --> I[File Operations]
+    I --> J[Terminal Output]
+    
 ---
 
 ## ✨ Features
