@@ -1,0 +1,12 @@
+# Project-X Agent Configuration
+# Copy this to .env and fill in your values
+
+API_KEY=sjy-...
+BASE_URL=https://api.com/v1
+MODELS=gpt-4,claude-3-opus,gemini-pro
+
+# Single model example (no racing):
+# MODELS=gpt-4
+
+# Multiple models for racing (fastest responds first):
+# MODELS=gpt-4,claude-3-opus,gemini-pro
