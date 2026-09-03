@@ -12,8 +12,13 @@
 
 Launch Project X instantly with a single command:
 
+#### Linux, mac Installation...
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Agent/main/install.sh | bash
+```
+#### 🪟 Windows Installation...
+```powershell
+powershell -c "irm https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Agent/main/install.ps1 | iex"
 ```
 
 
