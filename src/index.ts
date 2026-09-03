@@ -44,6 +44,7 @@ async function main() {
     config: config,
   });
 
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -51,8 +52,16 @@ async function main() {
   });
   rl.prompt();
 
+  // Flag to track if we're in a command that needs to block AI
+  let isProcessingCommand = false;
+
   rl.on("line", async (line: string) => {
     const input = line.trim();
+    
+    // If we're processing a command, ignore any additional input
+    if (isProcessingCommand) {
+      return;
+    }
     
     // Check for exit/quit first
     if (["exit", "quit", "q"].includes(input.toLowerCase())) {
@@ -68,6 +77,7 @@ async function main() {
     const cmd = input.toLowerCase();
     
     if (cmd === "reload") {
+      isProcessingCommand = true;
       const newConfig = loadConfig();
       if (newConfig) {
         config = newConfig;
@@ -78,11 +88,15 @@ async function main() {
       } else {
         console.log(c.red('❌ Failed to reload configuration. Please check your .env file.'));
       }
+      isProcessingCommand = false;
       handled = true;
     }
     else if (cmd === "edit") {
+      isProcessingCommand = true;
+      
       if (!config) {
         console.log(c.red('❌ No configuration available to edit. Please reconfigure the agent.'));
+        isProcessingCommand = false;
         handled = true;
         rl.prompt();
         return;
@@ -96,9 +110,12 @@ async function main() {
         console.log(c.green('✅ Configuration saved!'));
         console.log(c.gray('   Note: You need to restart the session for changes to take full effect.'));
       }
+      
+      isProcessingCommand = false;
       handled = true;
     }
     else if (cmd === "reconfig") {
+      isProcessingCommand = true;
       console.log(c.cyan('\n🔄 Reconfiguring...\n'));
       const newConfig = await promptUserForConfig();
       saveConfig(newConfig);
@@ -107,6 +124,7 @@ async function main() {
       console.log(`   Endpoint: ${c.cyan(config.BASE_URL)}`);
       console.log(`   Models: ${c.cyan(config.MODELS.join(', '))}`);
       console.log(c.gray('   Note: You need to restart the session for changes to take full effect.'));
+      isProcessingCommand = false;
       handled = true;
     }
     else if (cmd === "examples") {
