@@ -1,10 +1,12 @@
+#!/usr/bin/env bun
 declare const Bun: any;
-const fs = require("node:fs");
-const path = require("node:path");
 
-import { createSession, renderBanner, c, loadConfig, saveConfig, REPO_URL } from "./src/agent";
+import fs from 'fs';
+import path from 'path';
 
-const PORT = Number(process.env?.PORT || 30001);
+import { createSession, renderBanner, c, loadConfig, saveConfig, REPO_URL } from './agent.js';
+
+const PORT = Number(process.env?.PORT || 3000);
 const PROMPT = `${c.magenta("You")} ${c.gray("›")} `;
 
 // Per-connection input buffer
@@ -54,7 +56,7 @@ Bun.serve({
     }
 
     let filePath = url.pathname === "/" ? "/index.html" : url.pathname;
-    const fullPath = path.join((import.meta as any).dir as string, "public", filePath);
+    const fullPath = path.join((import.meta as any).dir as string, "..", "public", filePath);
     if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
       return new Response(Bun.file(fullPath));
     }
