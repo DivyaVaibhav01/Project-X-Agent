@@ -36,7 +36,7 @@ You must have **[Bun](https://bun.sh)** installed on your machine before running
 
 **macOS / Linux / WSL:**
 ```bash
-curl -fsSL [https://bun.sh/install](https://bun.sh/install) | bash
+curl -fsSL https://bun.sh/install | bash
 ```
 
 ## Windows (Powershell):
@@ -49,25 +49,16 @@ powershell -c "irm bun.sh/install.ps1 | iex"
 bun --version`
 ```
 
-# 🚀 Getting Started
 
-## 1. Download Projext-X-Agent
-```bash
-git clone [https://github.com/DivyaVaibhav01/project-x.git](https://github.com/DivyaVaibhav01/project-x.git)
-cd project-x
-```
+## ⚡ Quick One-Line Installation
 
-## 2. Install Dependencies
+Install Bun (if missing), clone the repository, set up dependencies, and launch Project X instantly with a single command:
 
 ```bash
-bun install
+curl -fsSL https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Agent/main/install.sh | bash
+
 ```
 
-
-## 3. Run the Agent
-```bash
-bun run agent
-```
 
 # 🌐 Web Terminal Usage
 Once the server is running, open your browser and navigate to:
