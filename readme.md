@@ -66,8 +66,6 @@ flowchart TB
 ![Project X Agents Web Terminal Preview](https://github.com/DivyaVaibhav01/Project-X-Agent/blob/main/content/Screenshot%20From%202026-09-03%2016-08-10.png?raw=true)
 *Project X running via WebSockets in the browser web terminal.*
 
-<img src="https://readme-typing-svg.demolab.com?font=Orbitron&weight=700&size=40&duration=3000&pause=1000&color=00FF88&center=true&vCenter=true&width=600&height=70&lines=⚡+PROJECT+X;AI+TERMINAL+AGENT;THE+FUTURE+IS+PARALLEL" alt="Project X Animated Header" />
-
 ## ⚡ Quick One-Line Installation
 
 Install Bun (if missing), clone the repository, set up dependencies, and launch Project X instantly with a single command:
