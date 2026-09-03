@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project X — Web Terminal</title>
+  <!-- xterm.js CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: #0a0a0f;
+      overflow: hidden;
+    }
+    #terminal {
+      width: 100vw;
+      height: 100vh;
+      padding: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="terminal"></div>
+
+  <!-- Using ES Modules via JS Delivr avoids global variable resolution errors -->
+  <script type="module">
+    import { Terminal } from 'https://cdn.jsdelivr.net/npm/xterm@5.3.0/+esm';
+    import { FitAddon } from 'https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/+esm';
+
+    // 1. Initialize Terminal
+    const term = new Terminal({
+      cursorBlink: true,
+      fontFamily: "Menlo, Consolas, Monaco, 'Courier New', monospace",
+      fontSize: 14,
+      theme: {
+        background: "#0a0a0f",
+        foreground: "#e6e6e6",
+        cursor: "#00e5ff",
+        selectionBackground: "rgba(0, 229, 255, 0.3)"
+      },
+    });
+
+    // 2. Attach Fit Addon
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(document.getElementById("terminal"));
+    
+    // Initial fit
+    fitAddon.fit();
+
+    // Auto-resize terminal when browser window resizes
+    window.addEventListener("resize", () => fitAddon.fit());
+
+    // 3. Setup WebSocket connection
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+    // Handle messages coming from Bun backend
+    ws.onmessage = (event) => {
+      term.write(event.data);
+    };
+
+    ws.onopen = () => {
+      term.focus();
+    };
+
+    ws.onclose = () => {
+      term.write("\r\n\x1b[90m[connection closed]\x1b[0m\r\n");
+    };
+
+    ws.onerror = (err) => {
+      term.write("\r\n\x1b[31m[websocket error]\x1b[0m\r\n");
+    };
+
+    // Send raw terminal data to the backend
+    // Since your backend handles keystrokes (Enter, Backspace, buffering), 
+    // send every keystroke straight over the socket.
+    term.onData((data) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data);
+      }
+    });
+  </script>
+</body>
+</html>

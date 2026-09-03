@@ -1,0 +1,12 @@
+{
+  "name": "project-x",
+  "bin": {
+    "project-x": "./bin/project-x"
+  },
+  "dependencies": {
+    "@types/bun": "^1.4.0"
+  },
+  "scripts": {
+    "agent": "bun run dev.ts"
+  }
+}
