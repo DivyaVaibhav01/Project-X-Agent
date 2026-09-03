@@ -1,16 +1,6 @@
-
-### 🚀 Web-Based AI Terminal with Parallel Model Execution
-
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Click_Here-00ff88?style=for-the-badge&labelColor=0a0a0a)](https://your-demo-link.com)
-[![Documentation](https://img.shields.io/badge/📖_Docs-Read-00d4ff?style=for-the-badge&labelColor=0a0a0a)](https://docs.your-project.com)
-
-</div>
-
----
-
 ## 🌌 The Next Generation AI Terminal
 
-**Project X** isn't just another AI wrapper — it's a **high-velocity, dual-environment AI agent** that brings the power of parallel model execution to your fingertips. Whether you're in your native CLI or a browser-based terminal, Project X delivers **blazing-fast** AI interactions with built-in tool calling and real-time file system operations.
+**Project X Agent** isn't just another AI wrapper — it's a **high-velocity, dual-environment AI agent** that brings the power of parallel model execution to your fingertips. Whether you're in your native CLI or a browser-based terminal, Project X delivers **blazing-fast** AI interactions with built-in tool calling and real-time file system operations.
 
 > **⚡ "Speed meets intelligence — where milliseconds decide the winner."**
 
@@ -30,6 +20,42 @@
 | 🔐 **Secure** | API keys never exposed — stored locally only |
 
 ---
+
+## 🧠 How It Works
+
+### Architecture Flow
+
+```mermaid
+flowchart TB
+    subgraph UI["🖥️ User Interface"]
+        CLI["Native CLI (Bun)"]
+        Web["Web Browser (Xterm.js)"]
+    end
+
+    subgraph Core["⚙️ Core Engine"]
+        WS["WebSocket Server (Bun)"]
+        Router["Model Router"]
+    end
+
+    subgraph Models["🤖 AI Models"]
+        M1["Model 1<br>(OpenAI)"]
+        M2["Model 2<br>(OpenAI)"]
+        M3["Model 3+<br>(Custom)"]
+    end
+
+    subgraph Tools["🔧 Tool Calling"]
+        Read["📖 read_file"]
+        Write["✏️ write_file"]
+        Delete["🗑️ delete_file"]
+    end
+
+    UI -->|WebSocket| Core
+    Router -->|Query All| Models
+    Models -->|First Response Wins| Router
+    Router -->|Execute| Tools
+    Tools -->|File System| Output["📊 Terminal Output"]
+```
+
 
 ## 📸 Overview
 
