@@ -15,7 +15,7 @@
     "typescript": "^5.0.0"
   },
   "scripts": {
-    "agent": "bun run dev.ts",
+    "agent": "bun run run.ts",
     "dev": "bun run index.ts",
     "server": "bun run server.ts"
   },

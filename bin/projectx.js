@@ -11,7 +11,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const projectRoot = join(__dirname, '..');
 
 // Check if project exists
-if (!existsSync(join(projectRoot, 'dev.ts'))) {
+if (!existsSync(join(projectRoot, 'run.ts'))) {
     console.error('\x1b[31m❌ Project-X not found in:', projectRoot);
     console.error('\x1b[33m💡 Please reinstall Project-X or check the installation path.\x1b[0m');
     process.exit(1);
@@ -29,7 +29,7 @@ async function main() {
         process.chdir(projectRoot);
         console.log('\x1b[36m🚀 Starting Project-X Agent...\x1b[0m\n');
         
-        const proc = Bun.spawn(['bun', 'run', 'dev.ts'], {
+        const proc = Bun.spawn(['bun', 'run', 'run.ts'], {
             cwd: projectRoot,
             stdin: 'inherit',
             stdout: 'inherit',
