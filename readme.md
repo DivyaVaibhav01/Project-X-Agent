@@ -89,15 +89,13 @@ http://localhost:3001
 You can execute prompts, interact with the agent, manage local files, and type exit or quit to end your session
 
 
-# 🛠️ Built With
+ 🛠️ Built With
 
 | Technology | Logo / Badge |
 |------------|--------------|
-| **Runtime & Server** | ![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white) |
-| **Frontend Terminal** | ![Xterm.js](https://img.shields.io/badge/xterm.js-20232A?style=for-the-badge&logo=xterm&logoColor=white) |
-| **AI Provider Client** | ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white) |
-
----
+| **Runtime & Server** | [<img src="https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white" alt="Bun" />](https://bun.sh) |
+| **Frontend Terminal** | [![Xterm.js](https://img.shields.io/badge/xterm.js-20232A?style=for-the-badge&logo=xterm&logoColor=white)](https://xtermjs.org) |
+| **AI Provider Client** | [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com) |
 
 ### 📦 Detailed Versions
 
