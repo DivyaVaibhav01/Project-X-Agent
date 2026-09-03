@@ -69,9 +69,21 @@ You can execute prompts, interact with the agent, manage local files, and type e
 
 
 # 🛠️ Built With
-### Runtime & Server: Bun
-### Frontend Terminal: Xterm.js
-### AI Provider Client: OpenAI Node SDK
+
+| Technology | Logo / Badge |
+|------------|--------------|
+| **Runtime & Server** | ![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white) |
+| **Frontend Terminal** | ![Xterm.js](https://img.shields.io/badge/xterm.js-20232A?style=for-the-badge&logo=xterm&logoColor=white) |
+| **AI Provider Client** | ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white) |
+
+---
+
+### 📦 Detailed Versions
+
+- **Bun** – JavaScript runtime & package manager  
+- **Xterm.js** – Terminal emulator for the browser  
+- **OpenAI Node SDK** – Official Node.js client for OpenAI APIs
+- 
 
 
 
