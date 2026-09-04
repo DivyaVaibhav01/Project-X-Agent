@@ -181,18 +181,21 @@ const tools: any[] = [
       parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
     },
   },
-  {
-    type: "function",
-    function: {
-      name: "write_file",
-      description: "Overwrite a file with new contents (creates it if missing)",
-      parameters: {
-        type: "object",
-        properties: { path: { type: "string" }, content: { type: "string" } },
-        required: ["path", "content"],
+{
+  type: "function",
+  function: {
+    name: "write_file",
+    description: "Overwrite a file with new contents (creates it if missing). Files are saved to the configured working directory (use 'setdir' to change).",
+    parameters: {
+      type: "object",
+      properties: { 
+        path: { type: "string", description: "Relative path to the file (will be saved in working directory)" }, 
+        content: { type: "string" } 
       },
+      required: ["path", "content"],
     },
   },
+},
   {
     type: "function",
     function: {
@@ -211,24 +214,35 @@ const tools: any[] = [
 ];
 
 function runTool(fs: any, name: string, args: any): string {
+  const workingDir = getWorkingDirectory();
+  
   try {
-    if (name === "read_file") return fs.readFileSync(args.path, "utf-8");
+    if (name === "read_file") {
+      const fullPath = path.join(workingDir, args.path);
+      return fs.readFileSync(fullPath, "utf-8");
+    }
     if (name === "write_file") {
-      fs.writeFileSync(args.path, args.content, "utf-8");
-      return `Wrote ${args.content.length} chars to ${args.path}`;
+      const fullPath = path.join(workingDir, args.path);
+      // Ensure the directory exists
+      const dir = path.dirname(fullPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(fullPath, args.content, "utf-8");
+      return `Wrote ${args.content.length} chars to ${fullPath}`;
     }
     if (name === "delete_file") {
       if (!args.confirm) return `Refused: confirm was not true for ${args.path}`;
-      if (!fs.existsSync(args.path)) return `Error: ${args.path} does not exist`;
-      fs.unlinkSync(args.path);
-      return `Deleted ${args.path}`;
+      const fullPath = path.join(workingDir, args.path);
+      if (!fs.existsSync(fullPath)) return `Error: ${fullPath} does not exist`;
+      fs.unlinkSync(fullPath);
+      return `Deleted ${fullPath}`;
     }
     return `Unknown tool: ${name}`;
   } catch (e: any) {
     return `Error: ${e.message}`;
   }
 }
-
 function center(s: string, width: number): string {
   const total = width - s.length;
   const left = Math.floor(total / 2);
@@ -267,33 +281,174 @@ export function renderBanner(): string {
 
 export function renderReply(text: string): string {
   if (!text) return text;
-  const fence = /```(\w+)?\n([\s\S]*?)```/g;
+
+  let processed = text;
+
+  processed = processed.replace(/^### (.*)$/gm, (match, content) => {
+    return `${c.magenta('▸')} ${c.bold(c.magenta(content))}`;
+  });
+  processed = processed.replace(/^## (.*)$/gm, (match, content) => {
+    return `${c.cyan('◆')} ${c.bold(c.cyan(content))}`;
+  });
+  processed = processed.replace(/^# (.*)$/gm, (match, content) => {
+    const bar = '━'.repeat(Math.max(4, content.length + 2));
+    return `${c.dim(bar)}\n${c.yellow('★')} ${c.bold(c.yellow(content.toUpperCase()))}\n${c.dim(bar)}`;
+  });
+
+  // ============================================
+  // Inline emphasis
+  // ============================================
+  processed = processed.replace(/\*\*\*(.*?)\*\*\*/g, (match, content) => {
+    return `\x1b[1m\x1b[3m${c.yellow(content)}\x1b[0m`;
+  });
+  processed = processed.replace(/\*\*(.*?)\*\*/g, (match, content) => {
+    return c.bold(content);
+  });
+  processed = processed.replace(/__(.*?)__/g, (match, content) => {
+    return c.bold(content);
+  });
+  processed = processed.replace(/\*(.*?)\*/g, (match, content) => {
+    return `\x1b[3m${content}\x1b[0m`;
+  });
+  processed = processed.replace(/_(.*?)_/g, (match, content) => {
+    return `\x1b[3m${content}\x1b[0m`;
+  });
+  processed = processed.replace(/~~(.*?)~~/g, (match, content) => {
+    return c.dim(`\x1b[9m${content}\x1b[0m`);
+  });
+  processed = processed.replace(/\+\+(.*?)\+\+/g, (match, content) => {
+    return `\x1b[4m${content}\x1b[0m`;
+  });
+  processed = processed.replace(/<u>(.*?)<\/u>/g, (match, content) => {
+    return `\x1b[4m${content}\x1b[0m`;
+  });
+  processed = processed.replace(/==(.*?)==/g, (match, content) => {
+    return `\x1b[43m\x1b[30m ${content} \x1b[0m`;
+  });
+
+  // Inline code — pill-style badge
+  processed = processed.replace(/`([^`]+)`/g, (match, content) => {
+    return `\x1b[48;2;40;40;48m${c.cyan(` ${content} `)}\x1b[0m`;
+  });
+
+  // ============================================
+  // Lists — icon bullets, ranked numbers in circles
+  // ============================================
+  const circled = ['⓪','①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+  processed = processed.replace(/^[-*+]\s+(.*)$/gm, (match, content) => {
+    return `  ${c.magenta('✦')} ${content}`;
+  });
+  processed = processed.replace(/^(\d+)\.\s+(.*)$/gm, (match, num, content) => {
+    const n = parseInt(num, 10);
+    const glyph = circled[n] || `${c.cyan(`${num}.`)}`;
+    return `  ${c.cyan(glyph)} ${content}`;
+  });
+  processed = processed.replace(/^(\d+)\)\s+(.*)$/gm, (match, num, content) => {
+    const n = parseInt(num, 10);
+    const glyph = circled[n] || `${c.cyan(`${num})`)}`;
+    return `  ${c.cyan(glyph)} ${content}`;
+  });
+  processed = processed.replace(/^-\s+\[ \]\s+(.*)$/gm, (match, content) => {
+    return `  ${c.dim('☐')} ${c.dim(content)}`;
+  });
+  processed = processed.replace(/^-\s+\[x\]\s+(.*)$/gm, (match, content) => {
+    return `  ${c.green('✔')} ${content}`;
+  });
+
+  // Blockquotes — callout panel
+  processed = processed.replace(/^>\s+(.*)$/gm, (match, content) => {
+    const italicFn = (c as any).italic && typeof (c as any).italic === 'function'
+      ? (s: string) => (c as any).italic(s)
+      : (s: string) => `\x1b[3m${s}\x1b[0m`;
+    return `${c.magenta('┃')} ${italicFn(content)}`;
+  });
+
+  // Horizontal rules — decorative divider
+  processed = processed.replace(/^(?:---|\*\*\*|___)$/gm, () => {
+    return c.dim('•'.repeat(3)) + c.dim('─'.repeat(34)) + c.dim('•'.repeat(3));
+  });
+
+  // ============================================
+  // Code blocks — full decorated panel: icon +
+  // language badge, gutter, footer stats, glow bar.
+  // ============================================
+  const fence = /`{3}\s*(\w+)?\s*\n([\s\S]*?)`{3}/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let out = "";
 
-  while ((match = fence.exec(text)) !== null) {
-    const before = text.slice(lastIndex, match.index).trim();
+  const langIcons: Record<string, string> = {
+    javascript: '🟨', typescript: '🔷', python: '🐍', rust: '🦀',
+    go: '🐹', html: '🌐', css: '🎨', json: '📦', bash: '⚡',
+    sql: '🗄️', dockerfile: '🐳', default: '📄',
+  };
+
+  const langColors: Record<string, (s: string) => string> = {
+    javascript: c.yellow, typescript: c.cyan, python: c.green,
+    rust: c.red, go: c.cyan, html: c.magenta, css: c.magenta,
+    json: c.yellow, bash: c.green, sql: c.blue, dockerfile: c.blue,
+    default: c.magenta,
+  };
+
+  while ((match = fence.exec(processed)) !== null) {
+    const before = processed.slice(lastIndex, match.index).trim();
     if (before) out += before.replace(/\n/g, "\r\n") + "\r\n";
 
-    const lang = match[1] || "code";
+    const lang = (match[1] || "default").trim();
     const codeLines = match[2].replace(/\n$/, "").split("\n");
-    const width = Math.min(Math.max(...codeLines.map((l) => l.length), lang.length + 4) + 4, 100);
+    const icon = langIcons[lang] || langIcons.default;
+    const color = langColors[lang] || langColors.default;
+    const gutterWidth = String(codeLines.length).length;
+    const width = 56;
 
-    out += c.gray("  ┌─ " + lang + " " + "─".repeat(Math.max(width - lang.length - 5, 0))) + "\r\n";
-    for (const line of codeLines) out += c.gray("  │ ") + c.green(line) + "\r\n";
-    out += c.gray("  └" + "─".repeat(width)) + "\r\n";
+    const badge = ` ${icon} ${color(c.bold(lang.toUpperCase()))} ${c.dim(`· ${codeLines.length} ln`)} `;
+    const badgeLen = lang.length + codeLines.length.toString().length + 10;
+
+    out += `\r\n${c.dim('╭' + '─'.repeat(2))}${badge}${c.dim('─'.repeat(Math.max(2, width - badgeLen)))}${c.dim('╮')}\r\n`;
+
+    for (let i = 0; i < codeLines.length; i++) {
+      const line = codeLines[i];
+      const lineNum = String(i + 1).padStart(gutterWidth, ' ');
+      out += `${c.dim('│')} ${c.dim(lineNum)} ${c.dim('┆')} `;
+
+      if (line.trim() === '') {
+        out += `\r\n`;
+        continue;
+      }
+      if (line.trim().startsWith('//') || line.trim().startsWith('#')) {
+        out += `${c.dim(line)}\r\n`;
+      } else if (line.includes('console.log') || line.includes('print') || line.includes('console.error')) {
+        out += `${c.yellow(line)}\r\n`;
+      } else if (line.includes('function') || line.includes('def') || line.includes('=>') ||
+                 line.includes('class') || line.includes('interface') || line.includes('type')) {
+        out += `${c.cyan(line)}\r\n`;
+      } else if (line.includes('const') || line.includes('let') || line.includes('var')) {
+        out += `${c.magenta(line)}\r\n`;
+      } else if (line.includes('return') || line.includes('export')) {
+        out += `${c.green(line)}\r\n`;
+      } else if (line.includes('import')) {
+        out += `${c.blue(line)}\r\n`;
+      } else if (line.includes('"') || line.includes("'") || line.includes('`')) {
+        out += `${c.green(line)}\r\n`;
+      } else {
+        out += `${line}\r\n`;
+      }
+    }
+
+    const totalChars = codeLines.join('').length;
+    out += `${c.dim('╰' + '─'.repeat(width) + '╯')}\r\n`;
+    out += `${c.dim(`   ✨ ${codeLines.length} lines · ${totalChars} chars · ${lang}`)}\r\n`;
 
     lastIndex = fence.lastIndex;
   }
 
-  const after = text.slice(lastIndex).trim();
+  const after = processed.slice(lastIndex).trim();
   if (after) out += after.replace(/\n/g, "\r\n");
-  
-  // Add GitHub footer
-  const footer = `\r\n\r\n${c.dim('─'.repeat(40))}\r\n${c.dim(`💡 Report issues or contribute: ${REPO_URL}`)}`;
-  
-  return (out || text.replace(/\n/g, "\r\n")) + footer;
+
+  const footerBar = c.dim('═'.repeat(40));
+  const footer = `\r\n\r\n${footerBar}\r\n${c.dim('✨')} ${c.dim(`Report issues or contribute: ${REPO_URL}/issues`)}`;
+
+  return (out || processed.replace(/\n/g, "\r\n")) + footer;
 }
 
 const SYSTEM_PROMPT =
@@ -791,6 +946,138 @@ export function createSession(opts: {
   return { handleLine };
 }
 
+const DIR_CONFIG_FILE = path.join(process.cwd(), '.projectx-dir');
+const DEFAULT_DIR_NAME = 'codespace';
+
+export function checkDirectoryPermissions(dir: string): {
+  exists: boolean;
+  readable: boolean;
+  writable: boolean;
+  executable: boolean;
+  message?: string;
+} {
+  try {
+    const resolvedPath = path.resolve(dir);
+    const result: any = {
+      exists: false,
+      readable: false,
+      writable: false,
+      executable: false,
+    };
+
+    if (!fs.existsSync(resolvedPath)) {
+      return { ...result, exists: false, message: `Directory does not exist: ${resolvedPath}` };
+    }
+
+    result.exists = true;
+
+    try {
+      fs.accessSync(resolvedPath, fs.constants.R_OK);
+      result.readable = true;
+    } catch (e) {
+      result.readable = false;
+    }
+
+    try {
+      fs.accessSync(resolvedPath, fs.constants.W_OK);
+      result.writable = true;
+    } catch (e) {
+      result.writable = false;
+    }
+
+    try {
+      fs.accessSync(resolvedPath, fs.constants.X_OK);
+      result.executable = true;
+    } catch (e) {
+      result.executable = false;
+    }
+
+    if (!result.readable) {
+      result.message = `No read permission for: ${resolvedPath}`;
+    } else if (!result.writable) {
+      result.message = `No write permission for: ${resolvedPath}`;
+    } else if (!result.executable) {
+      result.message = `No execute permission for: ${resolvedPath}`;
+    }
+
+    return result;
+  } catch (error: any) {
+    return {
+      exists: false,
+      readable: false,
+      writable: false,
+      executable: false,
+      message: error.message,
+    };
+  }
+}
+
+export function getWorkingDirectory(): string {
+  try {
+    if (fs.existsSync(DIR_CONFIG_FILE)) {
+      const dir = fs.readFileSync(DIR_CONFIG_FILE, 'utf-8').trim();
+      if (dir && fs.existsSync(dir)) {
+        return dir;
+      }
+    }
+  } catch (e) {}
+  
+  const defaultDir = path.join(process.cwd(), DEFAULT_DIR_NAME);
+  if (!fs.existsSync(defaultDir)) {
+    try {
+      fs.mkdirSync(defaultDir, { recursive: true });
+    } catch (e) {}
+  }
+  return defaultDir;
+}
+
+export function setWorkingDirectory(dir: string): { success: boolean; message: string } {
+  try {
+    const resolvedPath = path.resolve(dir);
+    
+    if (!resolvedPath) {
+      return { success: false, message: 'Invalid directory path' };
+    }
+
+    if (!fs.existsSync(resolvedPath)) {
+      try {
+        fs.mkdirSync(resolvedPath, { recursive: true });
+        console.log(c.dim(`  📁 Created directory: ${resolvedPath}`));
+      } catch (error: any) {
+        return { success: false, message: `Failed to create directory: ${error.message}` };
+      }
+    }
+
+    const permissions = checkDirectoryPermissions(resolvedPath);
+    if (!permissions.readable) {
+      return { success: false, message: `No read permission: ${resolvedPath}` };
+    }
+    if (!permissions.writable) {
+      return { success: false, message: `No write permission: ${resolvedPath}` };
+    }
+
+    fs.writeFileSync(DIR_CONFIG_FILE, resolvedPath, 'utf-8');
+    return { success: true, message: `Working directory set to: ${resolvedPath}` };
+  } catch (error: any) {
+    return { success: false, message: error.message };
+  }
+}
+
+export function resetWorkingDirectory(): { success: boolean; message: string } {
+  try {
+    if (fs.existsSync(DIR_CONFIG_FILE)) {
+      fs.unlinkSync(DIR_CONFIG_FILE);
+    }
+    const defaultDir = path.join(process.cwd(), DEFAULT_DIR_NAME);
+    if (!fs.existsSync(defaultDir)) {
+      fs.mkdirSync(defaultDir, { recursive: true });
+    }
+    return { success: true, message: `Reset to default directory: ${defaultDir}` };
+  } catch (error: any) {
+    return { success: false, message: error.message };
+  }
+}
+
 export default {
   c,
   BRAND,
@@ -808,4 +1095,8 @@ export default {
   promptUserForConfig,
   editConfig,
   createSession,
+  getWorkingDirectory,
+  setWorkingDirectory,
+  resetWorkingDirectory,
+  checkDirectoryPermissions,
 };
