@@ -446,7 +446,7 @@ export function renderReply(text: string): string {
   if (after) out += after.replace(/\n/g, "\r\n");
 
   const footerBar = c.dim('═'.repeat(40));
-  const footer = `\r\n\r\n${footerBar}\r\n${c.dim('✨')} ${c.dim(`Report issues or contribute: ${REPO_URL}/issues`)}`;
+  const footer = `\r\n\r\n${footerBar}\r\n${c.dim('✨')} ${c.dim(`Report issues or contribute: ${REPO_URL}`)}`;
 
   return (out || processed.replace(/\n/g, "\r\n")) + footer;
 }
