@@ -872,8 +872,6 @@ export async function editConfig(config: Config): Promise<Config> {
   return newConfig;
 }
 
-let currentAbortController: AbortController | null = null;
-
 export function createSession(opts: { 
   write: (s: string) => void; 
   fs: any; 
@@ -889,10 +887,27 @@ export function createSession(opts: {
   // ============================================
   // Cancel current request
   // ============================================
+  let currentAbortController: AbortController | null = null;
+  let spinnerTimer: any = null;
+
+  function startSpinner(label: string) {
+    const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    let i = 0;
+    spinnerTimer = setInterval(() => {
+      write(`\r${c.cyan(frames[(i = (i + 1) % frames.length)])} ${c.gray(label)}`);
+    }, 80);
+  }
+
+  function stopSpinner() {
+    clearInterval(spinnerTimer);
+    write("\r\x1b[K");
+  }
+
   function cancelCurrentRequest(): boolean {
     if (currentAbortController) {
       currentAbortController.abort();
       currentAbortController = null;
+      stopSpinner(); // ← ADD THIS - Stop spinner immediately
       return true;
     }
     return false;
@@ -952,80 +967,64 @@ export function createSession(opts: {
     return { ok: true };
   }
 
-  let spinnerTimer: any = null;
-  function startSpinner(label: string) {
-    const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-    let i = 0;
-    spinnerTimer = setInterval(() => {
-      write(`\r${c.cyan(frames[(i = (i + 1) % frames.length)])} ${c.gray(label)}`);
-    }, 80);
-  }
-  function stopSpinner() {
-    clearInterval(spinnerTimer);
-    write("\r\x1b[K");
+async function handleLine(rawLine: string) {
+  const text = rawLine.trim();
+  if (!text) return;
+
+  const limit = checkRateLimit();
+  if (!limit.ok) {
+    const secs = Math.ceil(limit.retryInMs / 1000);
+    write(c.yellow(`  ⏳ Rate limit hit (${RATE_LIMIT.max}/${RATE_LIMIT.windowMs / 1000}s). Try again in ${secs}s.`) + "\r\n");
+    return;
   }
 
-  async function handleLine(rawLine: string) {
-    const text = rawLine.trim();
-    if (!text) return;
+  history.push({ role: "user", content: text });
+  startSpinner(`processing...`);
 
-    const limit = checkRateLimit();
-    if (!limit.ok) {
-      const secs = Math.ceil(limit.retryInMs / 1000);
-      write(c.yellow(`  ⏳ Rate limit hit (${RATE_LIMIT.max}/${RATE_LIMIT.windowMs / 1000}s). Try again in ${secs}s.`) + "\r\n");
-      return;
-    }
+  try {
+    let { model, message: msg } = await raceModels(client, history);
+    stopSpinner();
+    write(c.dim(`  ⚡ ${BRAND}`) + "\r\n");
 
-    history.push({ role: "user", content: text });
-    startSpinner(`processing...`);
-
-    try {
-      let { model, message: msg } = await raceModels(client, history);
-      stopSpinner();
-      write(c.dim(`  ⚡ ${BRAND}`) + "\r\n");
-
-      while (msg.tool_calls?.length) {
-        // Check if cancelled
-        if (currentAbortController?.signal.aborted) {
-          throw new Error('Request cancelled by user');
-        }
-
-        history.push(msg);
-        for (const call of msg.tool_calls) {
-          const args = JSON.parse(call.function.arguments || "{}");
-          const result = runTool(fs, call.function.name, args);
-          const icon =
-            call.function.name === "read_file"
-              ? c.blue("↓ read ")
-              : call.function.name === "write_file"
-              ? c.yellow("✎ write")
-              : c.red("✕ del  ");
-          write(`  ${icon} ${c.gray(args.path ?? "")}  ${c.dim(result.slice(0, 70))}` + "\r\n");
-          history.push({ role: "tool", tool_call_id: call.id, content: result });
-        }
-        
-        // Check if cancelled before next API call
-        if (currentAbortController?.signal.aborted) {
-          throw new Error('Request cancelled by user');
-        }
-        
-        const res = await client.chat.completions.create({ model, messages: history, tools });
-        msg = res.choices[0].message;
+    while (msg.tool_calls?.length) {
+      if (currentAbortController?.signal.aborted) {
+        stopSpinner();
+        return;
       }
 
       history.push(msg);
-      write(`${c.cyan(c.bold("●"))} ${c.boldWhite(BRAND)}\r\n${renderReply(msg.content)}\r\n\r\n`);
-    } catch (e: any) {
-      stopSpinner();
-      if (e.message === 'Request cancelled by user' || e.name === 'AbortError') {
-        //
-      } else {
-        write(c.red(`✕ ${e.message}`) + "\r\n");
+      for (const call of msg.tool_calls) {
+        const args = JSON.parse(call.function.arguments || "{}");
+        const result = runTool(fs, call.function.name, args);
+        const icon =
+          call.function.name === "read_file"
+            ? c.blue("↓ read ")
+            : call.function.name === "write_file"
+            ? c.yellow("✎ write")
+            : c.red("✕ del  ");
+        write(`  ${icon} ${c.gray(args.path ?? "")}  ${c.dim(result.slice(0, 70))}` + "\r\n");
+        history.push({ role: "tool", tool_call_id: call.id, content: result });
       }
-    } finally {
-      currentAbortController = null;
+      
+      if (currentAbortController?.signal.aborted) {
+        stopSpinner();
+        return;
+      }
+      
+      const res = await client.chat.completions.create({ model, messages: history, tools });
+      msg = res.choices[0].message;
     }
+
+    history.push(msg);
+    write(`${c.cyan(c.bold("●"))} ${c.boldWhite(BRAND)}\r\n${renderReply(msg.content)}\r\n\r\n`);
+  } catch (e: any) {
+    stopSpinner();
+    write(c.red(`✕ ${e.message}`) + "\r\n");
+  } finally {
+    stopSpinner();
+    currentAbortController = null;
   }
+}
 
   return { handleLine, cancelCurrentRequest };
 }

@@ -19,11 +19,35 @@ const readline = require("node:readline");
 const fs = require("node:fs");
 
 // ============================================
-// DISABLE SIGINT - Let readline handle it
+// GLOBAL VARIABLES
 // ============================================
-process.on('SIGINT', function() {
-  // Do nothing - this prevents the default behavior
-  // The readline interface will handle Ctrl+C
+let isProcessingCommand = false;
+let sessionInstance: any = null;
+let rlInstance: any = null;
+
+// ============================================
+// CTRL+C HANDLER - Clean and simple
+// ============================================
+const handleCtrlC = () => {
+  process.stdout.write('\r\x1b[K');
+  
+  if (isProcessingCommand) {
+    if (sessionInstance && sessionInstance.cancelCurrentRequest) {
+      sessionInstance.cancelCurrentRequest();
+    }
+    isProcessingCommand = false;
+    if (rlInstance) {
+      rlInstance.prompt();
+    }
+  } else {
+    if (rlInstance) {
+      rlInstance.prompt();
+    }
+  }
+};
+
+process.on('SIGINT', () => {
+  handleCtrlC();
 });
 
 export const ENDPOINT_PRESETS = {
@@ -112,8 +136,6 @@ export const MODEL_PRESETS: Record<string, { name: string; models: string[] }> =
   }
 };
 
-let isProcessingCommand = false;
-
 async function main() {
   process.stdout.write(renderBanner());
 
@@ -146,48 +168,50 @@ async function main() {
     console.log(c.gray(`   📦 Report issues or contribute: ${REPO_URL}\n`));
   }
 
-
-let sessionInstance: any = null;
+  // ============================================
+  // CREATE SESSION
+  // ============================================
   sessionInstance = createSession({
     write: (s: string) => process.stdout.write(s),
     fs,
     config: config,
   });
 
+  // ============================================
+  // READLINE INTERFACE
+  // ============================================
   const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-  prompt: `${c.magenta("You")} ${c.gray("›")} `,
-  terminal: true,  
-  historySize: 100, 
-  removeHistoryDuplicates: true, 
+    input: process.stdin,
+    output: process.stdout,
+    prompt: `${c.magenta("You")} ${c.gray("›")} `,
+    terminal: true,
+    historySize: 100,
+    removeHistoryDuplicates: true,
   });
 
-sessionInstance = createSession({
-  write: (s: string) => process.stdout.write(s),
-  fs,
-  config: config,
-});
+  rlInstance = rl;
 
+  // ============================================
+  // READLINE SIGINT HANDLER
+  // ============================================
+  rl.on('SIGINT', () => {
+    handleCtrlC();
+  });
 
-rl.on('SIGINT', () => {
-  process.stdout.write('\r\x1b[K');
-  if (sessionInstance && sessionInstance.cancelCurrentRequest) {
-    sessionInstance.cancelCurrentRequest();
+  rl.prompt();
+
+  // ============================================
+  // LINE HANDLER
+  // ============================================
+rl.on("line", async (line: string) => {
+  const input = line.trim();
+  
+  if (isProcessingCommand) {
+    return;
   }
-  isProcessingCommand = false;
-  rl.prompt();
-});
-
-  rl.prompt();
-
-  rl.on("line", async (line: string) => {
-    const input = line.trim();
+    
     if (!input) {
       rl.prompt();
-      return;
-    }
-    if (isProcessingCommand) {
       return;
     }
     
@@ -373,12 +397,17 @@ rl.on('SIGINT', () => {
       rl.prompt();
       return;
     }
-    
-    // Send to AI
-    isProcessingCommand = true;
-    await sessionInstance.handleLine(line);
-    isProcessingCommand = false;
-    rl.prompt();
+
+isProcessingCommand = true;
+try {
+  await sessionInstance.handleLine(line);
+} catch (error: any) {
+  // Show the actual error
+  console.log(c.red(`✕ ${error.message}`));
+} finally {
+  isProcessingCommand = false;
+  rl.prompt();
+}
   });
 
   rl.on("close", () => {
