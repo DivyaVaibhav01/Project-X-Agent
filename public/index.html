@@ -570,7 +570,6 @@
     ws.onopen = () => {
       isConnected = true;
       
-      // Hide splash with delay (3.5s total load time)
       setTimeout(() => {
         splash.classList.add('hidden');
         terminalWrapper.classList.add('visible');
@@ -606,6 +605,26 @@
     term.onData((data) => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(data);
+      }
+    });
+
+    // ============================================
+    // CTRL+C HANDLER - Abort request
+    // ============================================
+    term.onKey((e) => {
+      const ev = e.domEvent;
+      
+      // Check for Ctrl+C
+      if (ev.ctrlKey && ev.key === 'c') {
+        ev.preventDefault();
+        
+        // Send abort signal to server
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send('\x03');
+        }
+        
+        // Show cancellation message locally
+        term.write('\x1b[36mYou \x1b[90m› \x1b[0m');
       }
     });
 
