@@ -190,7 +190,27 @@ const tools: any[] = [
     },
   },
 },
-
+  {
+    type: "function",
+    function: {
+      name: "write_file",
+      description: "⚠️ CRITICAL: Use this to ACTUALLY CREATE FILES. When user asks for ANY file, project, or code, use this immediately. DO NOT just talk about creating files - USE THIS TOOL.",
+      parameters: {
+        type: "object",
+        properties: { 
+          path: { 
+            type: "string", 
+            description: "File path (e.g., 'index.html', 'style.css', 'src/app.js')" 
+          }, 
+          content: { 
+            type: "string", 
+            description: "Full file content" 
+          } 
+        },
+        required: ["path", "content"],
+      },
+    },
+  },
   {
     type: "function",
     function: {
