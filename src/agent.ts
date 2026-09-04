@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
+import readlineSync from 'readline-sync';
+import { MODEL_PRESETS }  from "./index";
 
 export interface Config {
   API_KEY: string;
@@ -23,6 +25,7 @@ export const c = {
 export const BRAND = "Project-X Agent";
 export const TAGLINE = "a compile of multiple modules, made by Vaibhav Dev";
 export const REPO_URL = "https://github.com/DivyaVaibhav01/Project-X-Agent";
+export const RATE_LIMIT = { max: 5, windowMs: 60_000 };
 const CONFIG_PATH: any = path.join(process.cwd(), '.env');
 
 // Model aliases - map user-friendly names to actual model names
@@ -56,8 +59,6 @@ export const MODEL_EXAMPLES = {
   "Laguna": ["laguna-s-2.1", "laguna-s"],
   "Other": ["mixtral-8x7b", "phi-3", "qwen-72b", "agnes-2.5-flash"]
 };
-
-export const RATE_LIMIT = { max: 5, windowMs: 60_000 };
 
 // Parse models from input
 export function parseModels(input: string): string[] {
@@ -332,50 +333,166 @@ function simplePrompt(query: string): Promise<string> {
     });
   });
 }
+
+export const ENDPOINT_PRESETS: Record<string, { name: string; url: string; description: string }> = {
+  "1": {
+    name: "OpenAI",
+    url: "https://api.openai.com/v1",
+    description: "OpenAI official API"
+  },
+  "2": {
+    name: "Google Gemini",
+    url: "https://generativelanguage.googleapis.com/v1",
+    description: "Google Gemini API"
+  },
+  "3": {
+    name: "Nvidia NIM",
+    url: "https://integrate.api.nvidia.com/v1",
+    description: "Nvidia NIM API"
+  },
+  "4": {
+    name: "Anthropic Claude",
+    url: "https://api.anthropic.com/v1",
+    description: "Anthropic Claude API"
+  },
+  "5": {
+    name: "Custom",
+    url: "",
+    description: "Custom endpoint (enter manually)"
+  }
+};
+
 export async function promptUserForConfig(): Promise<Config> {
   console.log(c.cyan('\n🔧 First-time setup - Please configure Project-X Agent\n'));
   console.log(c.dim(`📦 Open-source project: ${REPO_URL}\n`));
 
   let apiKey = '';
   while (!apiKey.trim()) {
-    apiKey = await simplePrompt(c.yellow('Enter your API key (required): '));
+    apiKey = readlineSync.question(c.yellow('Enter your API key: '), {
+      hideEchoBack: true,
+      mask: '*'
+    });
     if (!apiKey.trim()) {
       console.log(c.red('❌ API key is required!'));
     }
   }
 
-  let baseURL = await simplePrompt(c.yellow('Enter API endpoint: '));
-  baseURL = baseURL.trim();
+  console.log(c.gray('\n💡 Select an API endpoint:\n'));
+  console.log('  1. OpenAI API        (https://api.openai.com/v1)');
+  console.log('  2. Google Gemini     (https://generativelanguage.googleapis.com/v1)');
+  console.log('  3. Nvidia NIM        (https://integrate.api.nvidia.com/v1)');
+  console.log('  4. Anthropic Claude  (https://api.anthropic.com/v1)');
+  console.log('  5. Custom (enter your own)\n');
+
+  let endpointChoice = '';
+  let validChoice = false;
+  let baseURL = '';
   
-  while (!baseURL) {
-    console.log(c.red('❌ API endpoint is required!'));
-    baseURL = await simplePrompt(c.yellow('Enter API endpoint: '));
+
+  while (!validChoice) {
+    const rawChoice = await simplePrompt(c.yellow('Select endpoint (1-5): '));
+    endpointChoice = rawChoice.trim().charAt(0);
+    
+    if (['1', '2', '3', '4', '5'].includes(endpointChoice)) {
+      validChoice = true;
+    } else {
+      console.log(c.red(`❌ Invalid option "${rawChoice}". Please enter 1, 2, 3, 4, or 5`));
+    }
+  }
+
+  if (endpointChoice === '5') {
+    baseURL = await simplePrompt(c.yellow('Enter your custom API endpoint: '));
     baseURL = baseURL.trim();
+    while (!baseURL) {
+      console.log(c.red('❌ API endpoint is required!'));
+      baseURL = await simplePrompt(c.yellow('Enter your custom API endpoint: '));
+      baseURL = baseURL.trim();
+    }
+    console.log(c.green(`✅ Custom endpoint: ${baseURL}`));
+  } else {
+    const preset = ENDPOINT_PRESETS[endpointChoice];
+    baseURL = preset.url;
+    console.log(c.green(`✅ Selected: ${preset.name} - ${baseURL}`));
   }
 
-  console.log(c.gray('\n💡 Popular model examples:'));
-  console.log(c.gray('   OpenAI:     gpt-4, gpt-4-turbo, gpt-3.5-turbo'));
-  console.log(c.gray('   Anthropic:  claude-3-opus, claude-3-sonnet, claude-3-haiku'));
-  console.log(c.gray('   Google:     gemini-pro, gemini-1.5-pro, gemini-1.5-flash'));
-  console.log(c.gray('   Mistral:    mistral-large, mistral-medium, mistral-small'));
-  console.log(c.gray('   Meta:       llama-3-70b, llama-3-8b'));
-  console.log(c.gray('   Cohere:     command-r, command-r-plus'));
-  console.log(c.gray('   Laguna:     laguna-s-2.1 (or use "laguna-s" as shortcut)'));
-  console.log(c.gray('   Custom:     any model name your endpoint supports'));
-  console.log(c.gray('\n💡 You can separate models with commas OR spaces:'));
-  console.log(c.gray('   Example: gpt-4,claude-3,gemini-pro'));
-  console.log(c.gray('   Example: gpt-4 claude-3 gemini-pro\n'));
 
-  let modelsInput = await simplePrompt(c.yellow('Enter model name(s): '));
-  let rawModels = parseModels(modelsInput);
-  
-  while (rawModels.length === 0) {
-    console.log(c.red('❌ At least one model is required!'));
-    modelsInput = await simplePrompt(c.yellow('Enter model name(s): '));
-    rawModels = parseModels(modelsInput);
+    let models: string[] = [];
+  if (endpointChoice !== '5') {
+    const presetModels = MODEL_PRESETS[endpointChoice];
+    console.log(c.gray(`\n💡 Available models for ${presetModels.name}:\n`));
+    
+    // Display models with numbers
+    const maxDisplay = Math.min(presetModels.models.length, 15);
+    for (let i = 0; i < maxDisplay; i++) {
+      console.log(`  ${c.cyan(`${i + 1}.`)} ${presetModels.models[i]}`);
+    }
+    
+    // Show note if there are more models
+    if (presetModels.models.length > maxDisplay) {
+      console.log(c.dim(`  ... and ${presetModels.models.length - maxDisplay} more models available`));
+    }
+    
+    // Always show custom option as the last option
+    const customOption = maxDisplay + 1;
+    console.log(`  ${c.cyan(`${customOption}.`)} Enter custom model(s) manually\n`);
+
+    let modelChoice = '';
+    let validModelChoice = false;
+    const totalOptions = maxDisplay + 1;
+
+    while (!validModelChoice) {
+      const rawChoice = await simplePrompt(c.yellow(`Select model (1-${totalOptions}): `));
+      modelChoice = rawChoice.trim();
+      
+      const numChoice = parseInt(modelChoice);
+      if (numChoice >= 1 && numChoice <= totalOptions) {
+        validModelChoice = true;
+      } else {
+        console.log(c.red(`❌ Invalid option. Please enter 1-${totalOptions}`));
+      }
+    }
+
+    const numChoice = parseInt(modelChoice);
+    
+    if (numChoice === totalOptions) {
+      // Custom option - manual entry
+      console.log(c.gray('\n💡 Enter model name(s) for your custom selection:'));
+      console.log(c.gray('   You can separate models with commas OR spaces'));
+      console.log(c.gray('   Example: gpt-4, claude-3\n'));
+      
+      const modelsInput = await simplePrompt(c.yellow('Enter model name(s): '));
+      models = parseModels(modelsInput);
+      while (models.length === 0) {
+        console.log(c.red('❌ At least one model is required!'));
+        const retryInput = await simplePrompt(c.yellow('Enter model name(s): '));
+        models = parseModels(retryInput);
+      }
+    } else {
+      // Single model selection
+      const selectedModel = presetModels.models[numChoice - 1];
+      models = [selectedModel];
+      console.log(c.green(`✅ Selected: ${selectedModel}`));
+    }
+  } else {
+    // Custom endpoint - manual model entry
+    console.log(c.gray('\n💡 Enter models for your custom endpoint:'));
+    console.log(c.gray('   You can separate models with commas OR spaces'));
+    console.log(c.gray('   Example: gpt-4,claude-3,gemini-pro\n'));
+    
+    let modelsInput = await simplePrompt(c.yellow('Enter model name(s): '));
+    models = parseModels(modelsInput);
+    
+    while (models.length === 0) {
+      console.log(c.red('❌ At least one model is required!'));
+      modelsInput = await simplePrompt(c.yellow('Enter model name(s): '));
+      models = parseModels(modelsInput);
+    }
   }
 
-  const models = resolveModelAliases(rawModels);
+  // Resolve any aliases
+  models = resolveModelAliases(models);
+
+
   
   console.log(c.green('\n✅ Configuration summary:'));
   console.log(`   API Key: ${c.cyan('•'.repeat(Math.min(apiKey.length, 8)))}${c.dim(' (hidden)')}`);
@@ -394,21 +511,6 @@ export async function promptUserForConfig(): Promise<Config> {
 }
 
 export async function editConfig(config: Config): Promise<Config> {
-  const readline = require("node:readline");
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: false  // ← Prevents double echo
-  });
-
-  const question = (query: string): Promise<string> => {
-    return new Promise((resolve) => {
-      rl.question(query, (answer: string) => {
-        resolve(answer.trim());
-      });
-    });
-  };
-
   console.log(c.cyan('\n📝 Edit Configuration\n'));
   console.log(c.gray('Current configuration:'));
   console.log(`  ${c.bold('API Key:')} ${c.dim('•'.repeat(Math.min(config.API_KEY.length, 12)))}`);
@@ -425,13 +527,13 @@ export async function editConfig(config: Config): Promise<Config> {
   let validChoice = false;
   
   while (!validChoice) {
-    const rawChoice = await question(c.yellow('Select option (1-5): '));
-    choice = rawChoice.charAt(0);
+    const rawChoice = await simplePrompt(c.yellow('Select option (1-5): '));
+    choice = rawChoice.trim().charAt(0);
     
     if (['1', '2', '3', '4', '5'].includes(choice)) {
       validChoice = true;
     } else {
-      console.log(c.red(`❌ Invalid option "${rawChoice}". Please enter 1, 2, 3, 4, or 5`));
+      console.log(c.red(`❌ Invalid option. Please enter 1, 2, 3, 4, or 5`));
     }
   }
 
@@ -439,7 +541,7 @@ export async function editConfig(config: Config): Promise<Config> {
 
   switch (choice) {
     case '1': {
-      const newApiKey = await question(c.yellow('Enter new API key: '));
+      const newApiKey = await simplePrompt(c.yellow('Enter new API key: '));
       if (newApiKey.trim()) {
         newConfig.API_KEY = newApiKey.trim();
         console.log(c.green('✅ API key updated'));
@@ -449,7 +551,7 @@ export async function editConfig(config: Config): Promise<Config> {
       break;
     }
     case '2': {
-      const newEndpoint = await question(c.yellow('Enter new endpoint: '));
+      const newEndpoint = await simplePrompt(c.yellow('Enter new endpoint: '));
       if (newEndpoint.trim()) {
         newConfig.BASE_URL = newEndpoint.trim();
         console.log(c.green('✅ Endpoint updated'));
@@ -461,7 +563,7 @@ export async function editConfig(config: Config): Promise<Config> {
     case '3': {
       console.log(c.gray('\n💡 Enter models (comma or space separated):'));
       console.log(c.gray(`   Current: ${config.MODELS.join(', ')}`));
-      const modelsInput = await question(c.yellow('Enter new models: '));
+      const modelsInput = await simplePrompt(c.yellow('Enter new models: '));
       const rawModels = parseModels(modelsInput);
       if (rawModels.length > 0) {
         newConfig.MODELS = resolveModelAliases(rawModels);
@@ -474,15 +576,15 @@ export async function editConfig(config: Config): Promise<Config> {
     case '4': {
       console.log(c.cyan('\n🔄 Editing all fields...\n'));
       
-      const newApiKey = await question(c.yellow('Enter new API key: '));
+      const newApiKey = await simplePrompt(c.yellow('Enter new API key: '));
       if (newApiKey.trim()) newConfig.API_KEY = newApiKey.trim();
       
-      const newEndpoint = await question(c.yellow('Enter new endpoint: '));
+      const newEndpoint = await simplePrompt(c.yellow('Enter new endpoint: '));
       if (newEndpoint.trim()) newConfig.BASE_URL = newEndpoint.trim();
       
       console.log(c.gray('\n💡 Enter models (comma or space separated):'));
       console.log(c.gray(`   Current: ${config.MODELS.join(', ')}`));
-      const modelsInput = await question(c.yellow('Enter new models: '));
+      const modelsInput = await simplePrompt(c.yellow('Enter new models: '));
       const rawModels = parseModels(modelsInput);
       if (rawModels.length > 0) {
         newConfig.MODELS = resolveModelAliases(rawModels);
@@ -494,7 +596,6 @@ export async function editConfig(config: Config): Promise<Config> {
     case '5':
     default: {
       console.log(c.yellow('ℹ️ Edit cancelled'));
-      rl.close();
       return config;
     }
   }
@@ -505,16 +606,14 @@ export async function editConfig(config: Config): Promise<Config> {
   console.log(`  ${c.bold('Models:')} ${c.cyan(newConfig.MODELS.join(', '))}`);
   console.log(c.dim(`\n   📦 ${REPO_URL}`));
 
-  const saveInput = await question(c.yellow('\nSave changes? (Y/n): '));
+  const saveInput = await simplePrompt(c.yellow('\nSave changes? (Y/n): '));
   const save = saveInput.trim().toLowerCase();
   
   if (save === 'n' || save === 'no') {
     console.log(c.yellow('ℹ️ Changes discarded'));
-    rl.close();
     return config;
   }
 
-  rl.close();
   return newConfig;
 }
 
