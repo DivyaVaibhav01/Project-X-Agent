@@ -8,7 +8,11 @@ import {
   MODEL_EXAMPLES, 
   MODEL_ALIASES,
   editConfig,
-  REPO_URL
+  REPO_URL,
+  getWorkingDirectory,
+  setWorkingDirectory,
+  resetWorkingDirectory,
+  checkDirectoryPermissions
 } from "./agent";
 
 const readline = require("node:readline");
@@ -46,42 +50,42 @@ export const MODEL_PRESETS: Record<string, { name: string; models: string[] }> =
   "1": {
     name: "OpenAI",
     models: [
-      "gpt-5.6-sol",        // Flagship model
-      "gpt-5.6-terra",      // Balanced everyday work
-      "gpt-5.6-luna",       // Fastest, most cost-efficient
-      "gpt-5.6-cyber",      // Specialized cybersecurity
-      "gpt-5.5",            // Released April 2026
-      "gpt-5.5-pro",        // Premium version
-      "gpt-5.4-pro",        // Highest capability
-      "gpt-5.4-thinking",   // Complex reasoning tasks
-      "gpt-5.3-instant",    // Fast everyday work
-      "gpt-5.3-chat-latest" // API stable version
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "gpt-5.6-cyber",
+      "gpt-5.5",
+      "gpt-5.5-pro",
+      "gpt-5.4-pro",
+      "gpt-5.4-thinking",
+      "gpt-5.3-instant",
+      "gpt-5.3-chat-latest"
     ]
   },
   "2": {
     name: "Google Gemini",
     models: [
-      "gemini-3.6-flash",          // Latest Flash (July 2026)
-      "gemini-3.5-flash",          // Most intelligent agentic
-      "gemini-3.5-flash-lite",     // Fastest, cheapest
-      "gemini-3.5-flash-cyber",    // Cybersecurity specialized
-      "gemini-3.1-flash-image",    // Native visual model
-      "gemini-3.1-flash-lite",     // Speed & cost efficiency
-      "gemini-3.1-flash-live",     // Real-time audio-to-audio
-      "gemini-3.1-pro-preview",    // Latest Gemini 3 series
-      "gemini-omni-flash-preview", // High-speed video generation
-      "gemini-2.0-flash"           // Stable legacy model
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.5-flash-cyber",
+      "gemini-3.1-flash-image",
+      "gemini-3.1-flash-lite",
+      "gemini-3.1-flash-live",
+      "gemini-3.1-pro-preview",
+      "gemini-omni-flash-preview",
+      "gemini-2.0-flash"
     ]
   },
   "3": {
     name: "Nvidia NIM",
     models: [
-      "z-ai/glm-5.2",                          // Latest GLM
-      "nvidia/nemotron-3-ultra-550b-a55b",     // Ultra-large model
-      "nvidia/nemotron-3-embed-8b-bf16",       // Best embedding model
-      "nvidia/nemotron-3-embed-1b-bf16",       // Efficient embedding
-      "minimaxai/minimax-m3",                  // Capable reasoner
-      "stepfun-ai/step-3.7-flash",             // Fast Flash model
+      "z-ai/glm-5.2",
+      "nvidia/nemotron-3-ultra-550b-a55b",
+      "nvidia/nemotron-3-embed-8b-bf16",
+      "nvidia/nemotron-3-embed-1b-bf16",
+      "minimaxai/minimax-m3",
+      "stepfun-ai/step-3.7-flash",
       "meta/muse-glimmer-30b",
       "poolside/laguna-xs-2.1",
       "deepseek-ai/deepseek-v4-pro-0813",
@@ -92,10 +96,10 @@ export const MODEL_PRESETS: Record<string, { name: string; models: string[] }> =
   "4": {
     name: "Anthropic Claude",
     models: [
-      "claude-fable-5.1",    // Most advanced coding & knowledge work
-      "claude-mythos-5.1",   // Restricted for cybersecurity/life sciences
-      "claude-opus-5",       // Previous flagship
-      "claude-fable-5"       // Previous generation
+      "claude-fable-5.1",
+      "claude-mythos-5.1",
+      "claude-opus-5",
+      "claude-fable-5"
     ]
   }
 };
@@ -115,12 +119,11 @@ async function main() {
     console.log(`   Endpoint: ${c.cyan(config.BASE_URL)}`);
     console.log(`   Models: ${c.cyan(config.MODELS.join(', '))}`);
     console.log(`   Mode: ${config.MODELS.length === 1 ? c.yellow('Single model') : c.yellow(`Race mode (${config.MODELS.length} models)`)}`);
-    console.log(c.gray('\n   Type "reload" to reload configuration from .env'));
-    console.log(c.gray('   Type "edit" to edit configuration'));
-    console.log(c.gray('   Type "reconfig" to reconfigure the agent'));
-    console.log(c.gray('   Type "examples" to see model examples'));
-    console.log(c.gray('   Type "aliases" to see model shortcuts'));
-    console.log(c.gray(`   📦 Report issues or contribute: ${REPO_URL}\n`));
+    
+    const workingDir = getWorkingDirectory();
+    const perms = checkDirectoryPermissions(workingDir);
+    console.log(c.gray(`\n   📁 Code space directory: ${c.cyan(workingDir)}`));
+    console.log(c.gray(`   Permissions: ${perms.readable ? c.green('✓ read') : c.red('✗ read')} | ${perms.writable ? c.green('✓ write') : c.red('✗ write')} | ${perms.executable ? c.green('✓ exec') : c.red('✗ exec')}`));
   }
 
   const session = createSession({
@@ -129,7 +132,6 @@ async function main() {
     config: config,
   });
 
-
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -137,18 +139,15 @@ async function main() {
   });
   rl.prompt();
 
-  // Flag to track if we're in a command that needs to block AI
   let isProcessingCommand = false;
 
   rl.on("line", async (line: string) => {
     const input = line.trim();
     
-    // If we're processing a command, ignore any additional input
     if (isProcessingCommand) {
       return;
     }
     
-    // Check for exit/quit first
     if (["exit", "quit", "q"].includes(input.toLowerCase())) {
       console.log(c.gray("\n  bye 👋\n\n"));
       console.log(c.dim(`  📦 ${REPO_URL}\n`));
@@ -157,11 +156,92 @@ async function main() {
       return;
     }
     
-    // Handle special commands
     let handled = false;
     const cmd = input.toLowerCase();
-    
-    if (cmd === "reload") {
+
+    if (cmd === "clear" || cmd === "cls") {
+      console.clear();
+      console.log(renderBanner());
+      console.log(c.green('\n✅ Configuration loaded from .env file'));
+      console.log(c.gray('\n   Type "setdir" to view current directory'));
+      console.log(c.gray('   Type "setdir <path>" to change it (optional)'));
+      console.log(c.gray('   Type "resetdir" to reset to default codespace folder'));
+      console.log(c.gray('   Type "clear" to clear the screen'));
+      console.log(c.gray('   Type "reload" to reload configuration from .env'));
+      console.log(c.gray('   Type "edit" to edit configuration'));
+      console.log(c.gray('   Type "reconfig" to reconfigure the agent'));
+      console.log(c.gray('   Type "examples" to see model examples'));
+      console.log(c.gray('   Type "aliases" to see model shortcuts'));
+      console.log(c.gray(`   📦 Report issues or contribute: ${REPO_URL}\n`));
+      handled = true;
+    }
+    else if (cmd === "setdir" || cmd.startsWith("setdir ")) {
+      const parts = input.split(' ');
+      if (parts.length < 2) {
+        const currentDir = getWorkingDirectory();
+        const perms = checkDirectoryPermissions(currentDir);
+        console.log(c.yellow(`\n📁 Current working directory: ${c.cyan(currentDir)}`));
+        console.log(c.gray(`   Permissions: ${perms.readable ? c.green('✓ read') : c.red('✗ read')} | ${perms.writable ? c.green('✓ write') : c.red('✗ write')} | ${perms.executable ? c.green('✓ exec') : c.red('✗ exec')}`));
+        console.log(c.gray('   To change it: setdir <path>'));
+        console.log(c.gray('   Example: setdir ~/projects'));
+        console.log(c.gray('   Example: setdir /home/user/Documents/code'));
+        console.log(c.gray('   (Leave empty to keep current directory)\n'));
+        handled = true;
+        rl.prompt();
+        return;
+      }
+      const newDir = parts.slice(1).join(' ');
+      const resolvedDir = newDir.replace(/^~/, process.env.HOME || '');
+      
+      const perms = checkDirectoryPermissions(resolvedDir);
+      if (!perms.exists) {
+        console.log(c.yellow(`\n📁 Directory doesn't exist: ${resolvedDir}`));
+        console.log(c.gray('   Would you like to create it? (y/n): '));
+        const answer = await new Promise((resolve) => {
+          rl.question('', (ans: any) => resolve(ans));
+        });
+        if (answer === 'y' || answer === 'Y') {
+          try {
+            fs.mkdirSync(resolvedDir, { recursive: true });
+            console.log(c.green(`✅ Directory created: ${resolvedDir}`));
+          } catch (error: any) {
+            console.log(c.red(`❌ Failed to create directory: ${error.message}`));
+            handled = true;
+            rl.prompt();
+            return;
+          }
+        } else {
+          console.log(c.yellow('ℹ️ Directory creation cancelled.\n'));
+          handled = true;
+          rl.prompt();
+          return;
+        }
+      }
+      
+      const result = setWorkingDirectory(resolvedDir);
+      if (result.success) {
+        console.log(c.green(`\n✅ ${result.message}`));
+        const newPerms = checkDirectoryPermissions(resolvedDir);
+        console.log(c.gray(`   Permissions: ${newPerms.readable ? c.green('✓ read') : c.red('✗ read')} | ${newPerms.writable ? c.green('✓ write') : c.red('✗ write')} | ${newPerms.executable ? c.green('✓ exec') : c.red('✗ exec')}`));
+        console.log(c.gray(`   All files will be saved here.\n`));
+      } else {
+        console.log(c.red(`\n❌ ${result.message}\n`));
+      }
+      handled = true;
+    }
+    else if (cmd === "resetdir" || cmd === "reset") {
+      const result = resetWorkingDirectory();
+      if (result.success) {
+        console.log(c.green(`\n✅ ${result.message}`));
+        const newPerms = checkDirectoryPermissions(getWorkingDirectory());
+        console.log(c.gray(`   Permissions: ${newPerms.readable ? c.green('✓ read') : c.red('✗ read')} | ${newPerms.writable ? c.green('✓ write') : c.red('✗ write')} | ${newPerms.executable ? c.green('✓ exec') : c.red('✗ exec')}`));
+        console.log(c.gray(`   All files will be saved here.\n`));
+      } else {
+        console.log(c.red(`\n❌ ${result.message}\n`));
+      }
+      handled = true;
+    }
+    else if (cmd === "reload") {
       isProcessingCommand = true;
       const newConfig = loadConfig();
       if (newConfig) {
@@ -239,23 +319,18 @@ async function main() {
       handled = true;
     }
 
-    // If the command was handled, skip sending to AI
     if (handled) {
       rl.prompt();
       return;
     }
     
-    // Send to AI
     await session.handleLine(line);
     rl.prompt();
   });
 
   rl.on("close", () => {
-    process.stdout.write(c.gray("\n  bye 👋\n\n"));
-    console.log(c.dim(`  📦 ${REPO_URL}\n`));
     process.exit(0);
   });
 }
 
-// Run the main function
 main().catch(console.error);
