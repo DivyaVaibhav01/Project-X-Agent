@@ -536,7 +536,8 @@ function simplePrompt(query: string): Promise<string> {
     const readline = require("node:readline");
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
+      terminal: false 
     });
     
     rl.question(query, (answer: string) => {
@@ -739,16 +740,15 @@ export async function editConfig(config: Config): Promise<Config> {
   let validChoice = false;
   
   while (!validChoice) {
-    const rawChoice = await simplePrompt(c.yellow('Select option (1-5): '));
-    choice = rawChoice.trim().charAt(0);
-    
-    if (['1', '2', '3', '4', '5'].includes(choice)) {
-      validChoice = true;
-    } else {
-      console.log(c.red(`❌ Invalid option. Please enter 1, 2, 3, 4, or 5`));
-    }
+  const rawChoice = await simplePrompt(c.yellow('Select option (1-5): '));
+  choice = rawChoice.trim().charAt(0);
+  
+  if (['1', '2', '3', '4', '5'].includes(choice)) {
+    validChoice = true;
+  } else {
+    console.log(c.red(`❌ Invalid option "${rawChoice}". Please enter 1, 2, 3, 4, or 5`));
   }
-
+}
   const newConfig = { ...config };
 
   switch (choice) {
