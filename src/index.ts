@@ -13,10 +13,18 @@ import {
   setWorkingDirectory,
   resetWorkingDirectory,
   checkDirectoryPermissions
-} from "./agent";
+} from "./agent.js";
 
 const readline = require("node:readline");
 const fs = require("node:fs");
+
+// ============================================
+// DISABLE SIGINT - Let readline handle it
+// ============================================
+process.on('SIGINT', function() {
+  // Do nothing - this prevents the default behavior
+  // The readline interface will handle Ctrl+C
+});
 
 export const ENDPOINT_PRESETS = {
   "1": {
@@ -104,6 +112,8 @@ export const MODEL_PRESETS: Record<string, { name: string; models: string[] }> =
   }
 };
 
+let isProcessingCommand = false;
+
 async function main() {
   process.stdout.write(renderBanner());
 
@@ -122,8 +132,18 @@ async function main() {
     
     const workingDir = getWorkingDirectory();
     const perms = checkDirectoryPermissions(workingDir);
-    console.log(c.gray(`\n   📁 Code space directory: ${c.cyan(workingDir)}`));
+    console.log(c.gray(`\n   📁 Working directory: ${c.cyan(workingDir)}`));
     console.log(c.gray(`   Permissions: ${perms.readable ? c.green('✓ read') : c.red('✗ read')} | ${perms.writable ? c.green('✓ write') : c.red('✗ write')} | ${perms.executable ? c.green('✓ exec') : c.red('✗ exec')}`));
+    console.log(c.gray('\n   Type "setdir" to view current directory'));
+    console.log(c.gray('   Type "setdir <path>" to change it (optional)'));
+    console.log(c.gray('   Type "resetdir" to reset to default codespace folder'));
+    console.log(c.gray('   Type "clear" to clear the screen'));
+    console.log(c.gray('   Type "reload" to reload configuration from .env'));
+    console.log(c.gray('   Type "edit" to edit configuration'));
+    console.log(c.gray('   Type "reconfig" to reconfigure the agent'));
+    console.log(c.gray('   Type "examples" to see model examples'));
+    console.log(c.gray('   Type "aliases" to see model shortcuts'));
+    console.log(c.gray(`   📦 Report issues or contribute: ${REPO_URL}\n`));
   }
 
   const session = createSession({
@@ -137,9 +157,35 @@ async function main() {
     output: process.stdout,
     prompt: `${c.magenta("You")} ${c.gray("›")} `,
   });
-  rl.prompt();
 
-  let isProcessingCommand = false;
+  // ============================================
+  // Handle Ctrl+C - Just show prompt again
+  // ============================================
+// At the top, store session reference
+let sessionInstance: any = null;
+
+// When creating session:
+sessionInstance = createSession({
+  write: (s: string) => process.stdout.write(s),
+  fs,
+  config: config,
+});
+
+// In the Ctrl+C handler:
+rl.on('SIGINT', () => {
+  // Clear the current line
+  process.stdout.write('\r\x1b[K');
+  
+  // Cancel the current AI request
+  if (sessionInstance && sessionInstance.cancelCurrentRequest) {
+    sessionInstance.cancelCurrentRequest();
+  }
+  
+  isProcessingCommand = false;
+  rl.prompt();
+});
+
+  rl.prompt();
 
   rl.on("line", async (line: string) => {
     const input = line.trim();
@@ -175,7 +221,7 @@ async function main() {
       console.log(c.gray(`   📦 Report issues or contribute: ${REPO_URL}\n`));
       handled = true;
     }
-    else if (cmd === "setdir" || cmd.startsWith("setdir ")) {
+    else if (cmd === "setdir") {
       const parts = input.split(' ');
       if (parts.length < 2) {
         const currentDir = getWorkingDirectory();
@@ -190,6 +236,8 @@ async function main() {
         rl.prompt();
         return;
       }
+      
+      isProcessingCommand = true;
       const newDir = parts.slice(1).join(' ');
       const resolvedDir = newDir.replace(/^~/, process.env.HOME || '');
       
@@ -206,12 +254,14 @@ async function main() {
             console.log(c.green(`✅ Directory created: ${resolvedDir}`));
           } catch (error: any) {
             console.log(c.red(`❌ Failed to create directory: ${error.message}`));
+            isProcessingCommand = false;
             handled = true;
             rl.prompt();
             return;
           }
         } else {
           console.log(c.yellow('ℹ️ Directory creation cancelled.\n'));
+          isProcessingCommand = false;
           handled = true;
           rl.prompt();
           return;
@@ -227,9 +277,11 @@ async function main() {
       } else {
         console.log(c.red(`\n❌ ${result.message}\n`));
       }
+      isProcessingCommand = false;
       handled = true;
     }
     else if (cmd === "resetdir" || cmd === "reset") {
+      isProcessingCommand = true;
       const result = resetWorkingDirectory();
       if (result.success) {
         console.log(c.green(`\n✅ ${result.message}`));
@@ -239,6 +291,7 @@ async function main() {
       } else {
         console.log(c.red(`\n❌ ${result.message}\n`));
       }
+      isProcessingCommand = false;
       handled = true;
     }
     else if (cmd === "reload") {
@@ -324,7 +377,10 @@ async function main() {
       return;
     }
     
+    // Send to AI
+    isProcessingCommand = true;
     await session.handleLine(line);
+    isProcessingCommand = false;
     rl.prompt();
   });
 

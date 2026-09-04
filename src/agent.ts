@@ -829,6 +829,8 @@ export async function editConfig(config: Config): Promise<Config> {
   return newConfig;
 }
 
+let currentAbortController: AbortController | null = null;
+
 export function createSession(opts: { 
   write: (s: string) => void; 
   fs: any; 
@@ -841,37 +843,59 @@ export function createSession(opts: {
   const history: any[] = [{ role: "system", content: SYSTEM_PROMPT }];
   const requestTimestamps: number[] = [];
 
+  // ============================================
+  // Cancel current request
+  // ============================================
+  function cancelCurrentRequest(): boolean {
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+      return true;
+    }
+    return false;
+  }
+
   async function raceModels(client: OpenAI, messages: any[]): Promise<{ model: string; message: any }> {
-    if (models.length === 1) {
-      try {
+    // Create new abort controller
+    currentAbortController = new AbortController();
+    const signal = currentAbortController.signal;
+
+    try {
+      if (models.length === 1) {
         const res = await client.chat.completions.create({ 
           model: models[0], 
           messages, 
           tools 
-        });
+        }, { signal });
         return { model: models[0], message: res.choices[0].message };
-      } catch (error: any) {
-        throw new Error(`Model ${models[0]} failed: ${error.message}`);
       }
-    }
 
-    const controllers = models.map(() => new AbortController());
-    
-    const attempts = models.map((model, i) =>
-      client.chat.completions
-        .create({ model, messages, tools }, { signal: controllers[i].signal })
-        .then((res) => ({ model, message: res.choices[0].message }))
-        .catch((err) => {
-          throw err;
-        })
-    );
-    
-    try {
-      const winner = await Promise.any(attempts);
-      controllers.forEach((ctl, i) => models[i] !== winner.model && ctl.abort());
-      return winner;
-    } catch (aggErr: any) {
-      throw new Error(`All models failed. Please check your API key, endpoint, and model names.`);
+      const controllers = models.map(() => new AbortController());
+      
+      const attempts = models.map((model, i) =>
+        client.chat.completions
+          .create({ model, messages, tools }, { signal: controllers[i].signal })
+          .then((res) => ({ model, message: res.choices[0].message }))
+          .catch((err) => {
+            throw err;
+          })
+      );
+      
+      try {
+        const winner = await Promise.any(attempts);
+        controllers.forEach((ctl) => ctl.abort());
+        return winner;
+      } catch (err: any) {
+        controllers.forEach((ctl) => ctl.abort());
+        throw err;
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError' || err.message?.includes('abort')) {
+        throw new Error('Request cancelled by user');
+      }
+      throw err;
+    } finally {
+      currentAbortController = null;
     }
   }
 
@@ -918,6 +942,11 @@ export function createSession(opts: {
       write(c.dim(`  ⚡ ${BRAND}`) + "\r\n");
 
       while (msg.tool_calls?.length) {
+        // Check if cancelled
+        if (currentAbortController?.signal.aborted) {
+          throw new Error('Request cancelled by user');
+        }
+
         history.push(msg);
         for (const call of msg.tool_calls) {
           const args = JSON.parse(call.function.arguments || "{}");
@@ -931,6 +960,12 @@ export function createSession(opts: {
           write(`  ${icon} ${c.gray(args.path ?? "")}  ${c.dim(result.slice(0, 70))}` + "\r\n");
           history.push({ role: "tool", tool_call_id: call.id, content: result });
         }
+        
+        // Check if cancelled before next API call
+        if (currentAbortController?.signal.aborted) {
+          throw new Error('Request cancelled by user');
+        }
+        
         const res = await client.chat.completions.create({ model, messages: history, tools });
         msg = res.choices[0].message;
       }
@@ -939,11 +974,17 @@ export function createSession(opts: {
       write(`${c.cyan(c.bold("●"))} ${c.boldWhite(BRAND)}\r\n${renderReply(msg.content)}\r\n\r\n`);
     } catch (e: any) {
       stopSpinner();
-      write(c.red(`✕ ${e.message}`) + "\r\n");
+      if (e.message === 'Request cancelled by user' || e.name === 'AbortError') {
+        //
+      } else {
+        write(c.red(`✕ ${e.message}`) + "\r\n");
+      }
+    } finally {
+      currentAbortController = null;
     }
   }
 
-  return { handleLine };
+  return { handleLine, cancelCurrentRequest };
 }
 
 const DIR_CONFIG_FILE = path.join(process.cwd(), '.projectx-dir');

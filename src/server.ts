@@ -7,10 +7,10 @@ import os from 'os';
 
 import { createSession, renderBanner, c, loadConfig, saveConfig, REPO_URL } from './agent.js';
 
-const PORT = Number(process.env?.PORT || 3001);
+const PORT = Number(process.env?.PORT || 3000);
 const PROMPT = `${c.magenta("You")} ${c.gray("›")} `;
 
-// ← ADD THIS FUNCTION to get local IP
+// Get local IP
 function getLocalIP(): string {
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
@@ -26,6 +26,7 @@ function getLocalIP(): string {
 // Per-connection input buffer
 type Conn = { buffer: string; session: ReturnType<typeof createSession> };
 const connections = new WeakMap<any, Conn>();
+const sessionRefs = new WeakMap<any, any>(); // For abort
 
 // Load configuration
 let config = loadConfig();
@@ -59,12 +60,11 @@ if (!config) {
   console.log(`   Models: ${c.cyan(config.MODELS.join(', '))}`);
 }
 
-// ← ADD THIS to get local IP
 const localIP = getLocalIP();
 
 Bun.serve({
   port: PORT,
-  hostname: '0.0.0.0',  // ✅ Already have this
+  hostname: '0.0.0.0',
   fetch(req: any, server: any) {
     const url = new URL(req.url);
 
@@ -88,6 +88,8 @@ Bun.serve({
         fs,
         config: config,
       });
+      // Store session reference for abort
+      sessionRefs.set(ws, session);
       connections.set(ws, { buffer: "", session });
       write(renderBanner());
       write(PROMPT);
@@ -96,6 +98,19 @@ Bun.serve({
       const conn = connections.get(ws);
       if (!conn) return;
       const input = data.toString();
+
+      // ============================================
+      // CTRL+C - ABORT REQUEST
+      // ============================================
+      if (input === '\x03') {
+        const session = sessionRefs.get(ws);
+        if (session && session.cancelCurrentRequest) {
+          session.cancelCurrentRequest();
+        }
+        conn.buffer = '';
+        ws.send('\x1b[36mYou \x1b[90m› \x1b[0m');
+        return;
+      }
 
       for (const ch of input) {
         if (ch === "\r" || ch === "\n") {
@@ -123,11 +138,11 @@ Bun.serve({
     },
     close(ws: any) {
       connections.delete(ws);
+      sessionRefs.delete(ws);
     },
   },
 });
 
-// ← UPDATE THIS to show both local and network URLs
 console.log(`\n\x1b[32m✅ Project X Agent web terminal running!\x1b[0m`);
 console.log(c.gray(`   📍 Local: http://localhost:${PORT}`));
 console.log(c.gray(`   📍 Network: http://${localIP}:${PORT}`));
