@@ -146,41 +146,35 @@ async function main() {
     console.log(c.gray(`   📦 Report issues or contribute: ${REPO_URL}\n`));
   }
 
-  const session = createSession({
+
+let sessionInstance: any = null;
+  sessionInstance = createSession({
     write: (s: string) => process.stdout.write(s),
     fs,
     config: config,
   });
 
   const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: `${c.magenta("You")} ${c.gray("›")} `,
+  input: process.stdin,
+  output: process.stdout,
+  prompt: `${c.magenta("You")} ${c.gray("›")} `,
+  terminal: true,  
+  historySize: 100, 
+  removeHistoryDuplicates: true, 
   });
 
-  // ============================================
-  // Handle Ctrl+C - Just show prompt again
-  // ============================================
-// At the top, store session reference
-let sessionInstance: any = null;
-
-// When creating session:
 sessionInstance = createSession({
   write: (s: string) => process.stdout.write(s),
   fs,
   config: config,
 });
 
-// In the Ctrl+C handler:
+
 rl.on('SIGINT', () => {
-  // Clear the current line
   process.stdout.write('\r\x1b[K');
-  
-  // Cancel the current AI request
   if (sessionInstance && sessionInstance.cancelCurrentRequest) {
     sessionInstance.cancelCurrentRequest();
   }
-  
   isProcessingCommand = false;
   rl.prompt();
 });
@@ -189,7 +183,10 @@ rl.on('SIGINT', () => {
 
   rl.on("line", async (line: string) => {
     const input = line.trim();
-    
+    if (!input) {
+      rl.prompt();
+      return;
+    }
     if (isProcessingCommand) {
       return;
     }
@@ -379,7 +376,7 @@ rl.on('SIGINT', () => {
     
     // Send to AI
     isProcessingCommand = true;
-    await session.handleLine(line);
+    await sessionInstance.handleLine(line);
     isProcessingCommand = false;
     rl.prompt();
   });
