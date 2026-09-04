@@ -2,38 +2,515 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Project X — Web Terminal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Web Terminal</title>
   <!-- xterm.js CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap');
+
     * {
       box-sizing: border-box;
-    }
-    html, body {
       margin: 0;
       padding: 0;
+    }
+
+    html, body {
       height: 100%;
       width: 100%;
       background: #0a0a0f;
       overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
+
+    /* ============================================
+       SPLASH SCREEN - MAIN
+    ============================================ */
+    #splash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at center, #0f1a1a 0%, #0a0a0f 70%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      transition: opacity 1.2s ease, transform 1.2s ease;
+    }
+
+    #splash.hidden {
+      opacity: 0;
+      transform: scale(1.05);
+      pointer-events: none;
+    }
+
+    .splash-container {
+      text-align: center;
+      padding: 30px;
+      animation: fadeInUp 1.2s ease forwards;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ============================================
+       ANIMATED ASCII ART (GLITCH + PULSE)
+    ============================================ */
+    .ascii-art {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      line-height: 1.25;
+      color: #00ff88;
+      white-space: pre;
+      display: inline-block;
+      text-shadow: 
+        0 0 20px rgba(0, 255, 136, 0.15),
+        0 0 60px rgba(0, 255, 136, 0.05);
+      animation: glitchText 4s infinite, pulseGlow 3s ease-in-out infinite;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+    }
+
+    @keyframes glitchText {
+      0%, 90%, 100% { transform: translate(0); opacity: 1; }
+      92% { transform: translate(-2px, 1px); opacity: 0.9; }
+      94% { transform: translate(2px, -1px); opacity: 0.95; }
+      96% { transform: translate(-1px, 2px); opacity: 0.9; }
+      98% { transform: translate(1px, -2px); opacity: 1; }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { text-shadow: 0 0 20px rgba(0, 255, 136, 0.15), 0 0 60px rgba(0, 255, 136, 0.05); }
+      50% { text-shadow: 0 0 40px rgba(0, 255, 136, 0.25), 0 0 80px rgba(0, 255, 136, 0.1); }
+    }
+
+    /* ============================================
+       SPLASH TITLE
+    ============================================ */
+    .splash-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 42px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #00ff88 0%, #00e5ff 50%, #00ff88 100%);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: gradientShift 3s ease-in-out infinite;
+      letter-spacing: 6px;
+      margin-bottom: 6px;
+      text-shadow: none;
+      filter: drop-shadow(0 0 30px rgba(0, 255, 136, 0.15));
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .splash-sub {
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      font-weight: 400;
+      color: rgba(0, 255, 136, 0.4);
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+
+    /* ============================================
+       ANIMATED LOADING BAR (Cyber Style)
+    ============================================ */
+    .loader-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .loader-bar-track {
+      width: 200px;
+      height: 3px;
+      background: rgba(0, 255, 136, 0.08);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .loader-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #00ff88);
+      border-radius: 2px;
+      animation: loadBar 3s ease-in-out forwards;
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+    }
+
+    @keyframes loadBar {
+      0% { width: 0%; }
+      20% { width: 15%; }
+      40% { width: 35%; }
+      60% { width: 55%; }
+      80% { width: 80%; }
+      95% { width: 95%; }
+      100% { width: 100%; }
+    }
+
+    .loader-text {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: rgba(0, 255, 136, 0.4);
+      letter-spacing: 3px;
+      animation: pulseText 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulseText {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.8; }
+    }
+
+    .loader-dots {
+      display: inline-block;
+      min-width: 24px;
+      text-align: left;
+    }
+
+    /* ============================================
+       FLOATING PARTICLES BACKGROUND
+    ============================================ */
+    #particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: rgba(0, 255, 136, 0.2);
+      border-radius: 50%;
+      animation: floatParticle 8s infinite ease-in-out;
+    }
+
+    @keyframes floatParticle {
+      0%, 100% { transform: translateY(0) translateX(0); opacity: 0.2; }
+      25% { transform: translateY(-30px) translateX(10px); opacity: 0.6; }
+      50% { transform: translateY(-60px) translateX(-5px); opacity: 0.3; }
+      75% { transform: translateY(-30px) translateX(15px); opacity: 0.5; }
+    }
+
+    /* ============================================
+       TERMINAL CONTAINER
+    ============================================ */
+    #terminal-wrapper {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 16px;
+      background: #0a0a0f;
+      opacity: 0;
+      transition: opacity 1s ease;
+    }
+
+    #terminal-wrapper.visible {
+      opacity: 1;
+    }
+
     #terminal {
-      width: 100vw;
-      height: 100vh;
-      padding: 12px;
+      width: 100%;
+      height: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 255, 136, 0.06);
+      box-shadow: 
+        0 0 60px rgba(0, 255, 136, 0.03),
+        inset 0 0 60px rgba(0, 255, 136, 0.02);
+    }
+
+    /* ============================================
+       XTERM OVERRIDES
+    ============================================ */
+    .xterm {
+      padding: 8px;
+    }
+
+    .xterm-viewport::-webkit-scrollbar {
+      width: 5px;
+      background: transparent;
+    }
+
+    .xterm-viewport::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .xterm-viewport::-webkit-scrollbar-thumb {
+      background: rgba(0, 255, 136, 0.2);
+      border-radius: 4px;
+    }
+
+    .xterm-viewport::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 255, 136, 0.4);
+    }
+
+    /* ============================================
+       STATUS BADGE
+    ============================================ */
+    #status-badge {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 8px 18px;
+      border-radius: 24px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: rgba(0, 255, 136, 0.06);
+      border: 1px solid rgba(0, 255, 136, 0.08);
+      color: #00ff88;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+      font-family: 'Courier New', monospace;
+    }
+
+    #status-badge.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #status-badge.disconnected {
+      background: rgba(255, 50, 50, 0.06);
+      border-color: rgba(255, 50, 50, 0.15);
+      color: #ff4444;
+    }
+
+    .badge-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #00ff88;
+      margin-right: 10px;
+      animation: blinkDot 1.5s ease-in-out infinite;
+      box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+    }
+
+    #status-badge.disconnected .badge-dot {
+      background: #ff4444;
+      animation: none;
+      box-shadow: 0 0 12px rgba(255, 50, 50, 0.3);
+    }
+
+    @keyframes blinkDot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    /* ============================================
+       RESPONSIVE
+    ============================================ */
+    @media (max-width: 768px) {
+      .ascii-art {
+        font-size: 7px;
+      }
+      
+      .splash-title {
+        font-size: 28px;
+        letter-spacing: 4px;
+      }
+      
+      .splash-sub {
+        font-size: 10px;
+        letter-spacing: 4px;
+      }
+      
+      .loader-bar-track {
+        width: 150px;
+      }
+
+      #terminal-wrapper {
+        padding: 8px;
+      }
+      
+      #terminal {
+        border-radius: 10px;
+      }
+      
+      #status-badge {
+        bottom: 16px;
+        right: 16px;
+        padding: 6px 14px;
+        font-size: 10px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .ascii-art {
+        font-size: 5px;
+        margin-bottom: 16px;
+      }
+      
+      .splash-title {
+        font-size: 20px;
+        letter-spacing: 2px;
+      }
+      
+      .splash-sub {
+        font-size: 8px;
+        letter-spacing: 3px;
+      }
+      
+      .loader-bar-track {
+        width: 120px;
+      }
+      
+      .loader-text {
+        font-size: 9px;
+      }
+
+      #terminal-wrapper {
+        padding: 4px;
+      }
+      
+      #terminal {
+        border-radius: 6px;
+      }
+      
+      #status-badge {
+        bottom: 12px;
+        right: 12px;
+        padding: 4px 12px;
+        font-size: 9px;
+      }
+    }
+
+    @media (min-width: 1200px) {
+      #terminal-wrapper {
+        padding: 28px;
+      }
+      
+      #terminal {
+        border-radius: 20px;
+      }
     }
   </style>
 </head>
 <body>
-  <div id="terminal"></div>
 
-  <!-- Using ES Modules via JS Delivr avoids global variable resolution errors -->
+  <!-- ============================================
+       PARTICLES BACKGROUND
+  ============================================ -->
+  <div id="particles"></div>
+
+  <!-- ============================================
+       SPLASH SCREEN
+  ============================================ -->
+  <div id="splash">
+    <div class="splash-container">
+      <div class="ascii-art">
+  ╔═══════════════════════════════════════════════════╗
+  ║  ┌─────────────────────────────────────────────┐  ║
+  ║  │                                             │  ║
+  ║  │           ✦ PROJECT-X AGENT ✦               │  ║
+  ║  │        Neural Interface Terminal            │  ║
+  ║  │                                             │  ║
+  ║  │        ⚡ speed · intelligence · power ⚡   │  ║
+  ║  │                                             │  ║
+  ║  └─────────────────────────────────────────────┘  ║
+  ╚═══════════════════════════════════════════════════╝
+</div>
+      <div class="splash-title">Project-X</div>
+      <div class="splash-sub">Neural Terminal v2.0</div>
+      
+      <div class="loader-container">
+        <div class="loader-bar-track">
+          <div class="loader-bar-fill"></div>
+        </div>
+        <div class="loader-text">
+          initializing<span class="loader-dots">...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       TERMINAL
+  ============================================ -->
+  <div id="terminal-wrapper">
+    <div id="terminal"></div>
+  </div>
+
+  <!-- ============================================
+       STATUS BADGE
+  ============================================ -->
+  <div id="status-badge">
+    <span class="badge-dot"></span> Connected
+  </div>
+
+  <!-- ============================================
+       SCRIPTS
+  ============================================ -->
   <script type="module">
     import { Terminal } from 'https://cdn.jsdelivr.net/npm/xterm@5.3.0/+esm';
     import { FitAddon } from 'https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/+esm';
 
-    // 1. Initialize Terminal
+    // ============================================
+    // PARTICLES
+    // ============================================
+    const particlesContainer = document.getElementById('particles');
+    for (let i = 0; i < 30; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.top = Math.random() * 100 + '%';
+      p.style.width = (1 + Math.random() * 2) + 'px';
+      p.style.height = p.style.width;
+      p.style.animationDelay = (Math.random() * 8) + 's';
+      p.style.animationDuration = (6 + Math.random() * 6) + 's';
+      particlesContainer.appendChild(p);
+    }
+
+    // ============================================
+    // LOADER DOTS
+    // ============================================
+    const dots = document.querySelector('.loader-dots');
+    let dotCount = 1;
+    setInterval(() => {
+      dotCount = (dotCount % 3) + 1;
+      dots.textContent = '.'.repeat(dotCount);
+    }, 500);
+
+    // ============================================
+    // DOM REFS
+    // ============================================
+    const splash = document.getElementById('splash');
+    const terminalWrapper = document.getElementById('terminal-wrapper');
+    const statusBadge = document.getElementById('status-badge');
+
+    // ============================================
+    // TERMINAL SETUP
+    // ============================================
     const term = new Terminal({
       cursorBlink: true,
       fontFamily: "Menlo, Consolas, Monaco, 'Courier New', monospace",
@@ -42,50 +519,128 @@
         background: "#0a0a0f",
         foreground: "#e6e6e6",
         cursor: "#00e5ff",
-        selectionBackground: "rgba(0, 229, 255, 0.3)"
+        selectionBackground: "rgba(0, 229, 255, 0.15)",
+        black: "#1a1a1a",
+        red: "#ff5555",
+        green: "#50fa7b",
+        yellow: "#f1fa8c",
+        blue: "#8be9fd",
+        magenta: "#ff79c6",
+        cyan: "#00ff88",
+        white: "#f8f8f2",
+        brightBlack: "#6272a4",
+        brightRed: "#ff6e6e",
+        brightGreen: "#69ff94",
+        brightYellow: "#ffffa5",
+        brightBlue: "#a4ffff",
+        brightMagenta: "#ff92d0",
+        brightCyan: "#00ff99",
+        brightWhite: "#ffffff",
       },
+      allowTransparency: true,
     });
 
-    // 2. Attach Fit Addon
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
-    term.open(document.getElementById("terminal"));
-    
+    term.open(document.getElementById('terminal'));
+
     // Initial fit
-    fitAddon.fit();
+    setTimeout(() => fitAddon.fit(), 150);
 
-    // Auto-resize terminal when browser window resizes
-    window.addEventListener("resize", () => fitAddon.fit());
+    // ============================================
+    // AUTO-RESIZE
+    // ============================================
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => fitAddon.fit(), 100);
+    });
 
-    // 3. Setup WebSocket connection
-    const proto = location.protocol === "https:" ? "wss" : "ws";
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => fitAddon.fit(), 350);
+    });
+
+    // ============================================
+    // WEBSOCKET
+    // ============================================
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${proto}://${location.host}/ws`);
+    let isConnected = false;
 
-    // Handle messages coming from Bun backend
+    ws.onopen = () => {
+      isConnected = true;
+      
+      // Hide splash with delay (3.5s total load time)
+      setTimeout(() => {
+        splash.classList.add('hidden');
+        terminalWrapper.classList.add('visible');
+        statusBadge.classList.add('visible');
+        statusBadge.classList.remove('disconnected');
+        statusBadge.innerHTML = '<span class="badge-dot"></span> Connected';
+        term.focus();
+        setTimeout(() => fitAddon.fit(), 200);
+      }, 500);
+    };
+
     ws.onmessage = (event) => {
       term.write(event.data);
     };
 
-    ws.onopen = () => {
-      term.focus();
-    };
-
     ws.onclose = () => {
-      term.write("\r\n\x1b[90m[connection closed]\x1b[0m\r\n");
+      isConnected = false;
+      statusBadge.classList.add('disconnected');
+      statusBadge.innerHTML = '<span class="badge-dot"></span> Disconnected';
+      term.write('\r\n\x1b[31m⚠️ Connection lost. Reload to reconnect.\x1b[0m\r\n');
     };
 
-    ws.onerror = (err) => {
-      term.write("\r\n\x1b[31m[websocket error]\x1b[0m\r\n");
+    ws.onerror = () => {
+      if (!isConnected) {
+        document.querySelector('.loader-text').textContent = '⚠️ connection failed — reload';
+        document.querySelector('.loader-text').style.color = '#ff4444';
+      }
     };
 
-    // Send raw terminal data to the backend
-    // Since your backend handles keystrokes (Enter, Backspace, buffering), 
-    // send every keystroke straight over the socket.
+    // ============================================
+    // KEYSTROKES
+    // ============================================
     term.onData((data) => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(data);
       }
     });
+
+    // ============================================
+    // COPY/PASTE
+    // ============================================
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+        const selection = term.getSelection();
+        if (selection) {
+          navigator.clipboard?.writeText(selection).catch(() => {});
+          e.preventDefault();
+        }
+      }
+      
+      if (e.ctrlKey && e.shiftKey && e.key === 'V') {
+        navigator.clipboard?.readText().then(text => {
+          if (text && ws.readyState === WebSocket.OPEN) {
+            ws.send(text);
+          }
+        }).catch(() => {});
+        e.preventDefault();
+      }
+    });
+
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      navigator.clipboard?.readText().then(text => {
+        if (text && ws.readyState === WebSocket.OPEN) {
+          ws.send(text);
+        }
+      }).catch(() => {});
+    });
+
+    console.log('🚀 Project-X Neural Terminal v2.0 loaded');
   </script>
 </body>
 </html>
