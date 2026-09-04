@@ -7,7 +7,7 @@ import os from 'os';
 
 import { createSession, renderBanner, c, loadConfig, saveConfig, REPO_URL } from './agent.js';
 
-const PORT = Number(process.env?.PORT || 3000);
+const PORT = Number(process.env?.PORT || 3001);
 const PROMPT = `${c.magenta("You")} ${c.gray("›")} `;
 
 // Get local IP
