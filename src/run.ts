@@ -31,7 +31,7 @@ console.log(`\x1b[90m  (web terminal starting in background — check the URL it
 
 // Give the server enough time to boot
 console.log('\x1b[90m  Waiting for server to start...\x1b[0m');
-await new Promise((r) => setTimeout(r, 1500));
+await new Promise((r) => setTimeout(r, 5000));
 
 // Start CLI
 console.log('\x1b[90m  Starting CLI...\x1b[0m\n');
