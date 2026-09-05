@@ -637,22 +637,45 @@ MODELS=${config.MODELS.join(',')}
   console.log(c.green(`✅ Configuration saved to ${CONFIG_PATH}`));
 }
 
+// Add this at the top with other state
+let currentPromptAbort: AbortController | null = null;
+
 function simplePrompt(query: string): Promise<string> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const readline = require("node:readline");
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
-      terminal: false 
+      terminal: false
     });
-    
-    rl.question(query, (answer: string) => {
+
+    let isCancelled = false;
+
+    const onSIGINT = () => {
+      isCancelled = true;
       rl.close();
-      resolve(answer);
+      reject(new Error('Input cancelled by user'));
+    };
+
+    rl.on('SIGINT', onSIGINT);
+
+    rl.question(query, (answer: string) => {
+      rl.removeListener('SIGINT', onSIGINT);
+      rl.close();
+      if (!isCancelled) {
+        resolve(answer);
+      }
     });
   });
 }
 
+// Add function to abort current prompt
+function abortCurrentPrompt(): void {
+  if (currentPromptAbort) {
+    currentPromptAbort.abort();
+    currentPromptAbort = null;
+  }
+}
 export const ENDPOINT_PRESETS: Record<string, { name: string; url: string; description: string }> = {
   "1": {
     name: "OpenAI",
@@ -842,97 +865,113 @@ export async function editConfig(config: Config): Promise<Config> {
   console.log('  4. Edit all');
   console.log('  5. Cancel\n');
 
-  let choice = '';
+ let choice = '';
   let validChoice = false;
-  
+
   while (!validChoice) {
-  const rawChoice = await simplePrompt(c.yellow('Select option (1-5): '));
-  choice = rawChoice.trim().charAt(0);
-  
-  if (['1', '2', '3', '4', '5'].includes(choice)) {
-    validChoice = true;
-  } else {
-    console.log(c.red(`❌ Invalid option "${rawChoice}". Please enter 1, 2, 3, 4, or 5`));
+    try {
+      const rawChoice = await simplePrompt(c.yellow('Select option (1-5): '));
+      choice = rawChoice.trim().charAt(0);
+
+      if (['1', '2', '3', '4', '5'].includes(choice)) {
+        validChoice = true;
+      } else {
+        //
+      }
+    } catch (error: any) {
+      // The user pressed Ctrl+C
+      if (error.message === 'Input cancelled by user') {
+        console.log(c.yellow('\n  ⏹️ Edit cancelled'));
+        return config;
+      }
+      throw error;
+    }
   }
-}
+
+
   const newConfig = { ...config };
 
-  switch (choice) {
-    case '1': {
-      const newApiKey = await simplePrompt(c.yellow('Enter new API key: '));
-      if (newApiKey.trim()) {
-        newConfig.API_KEY = newApiKey.trim();
-        console.log(c.green('✅ API key updated'));
-      } else {
-        console.log(c.yellow('ℹ️ API key unchanged'));
+  try {
+    switch (choice) {
+      case '1': {
+        const newApiKey = await simplePrompt(c.yellow('Enter new API key: '));
+        if (newApiKey.trim()) {
+          newConfig.API_KEY = newApiKey.trim();
+          console.log(c.green('✅ API key updated'));
+        } else {
+          console.log(c.yellow('ℹ️ API key unchanged'));
+        }
+        break;
       }
-      break;
-    }
-    case '2': {
-      const newEndpoint = await simplePrompt(c.yellow('Enter new endpoint: '));
-      if (newEndpoint.trim()) {
-        newConfig.BASE_URL = newEndpoint.trim();
-        console.log(c.green('✅ Endpoint updated'));
-      } else {
-        console.log(c.yellow('ℹ️ Endpoint unchanged'));
+      case '2': {
+        const newEndpoint = await simplePrompt(c.yellow('Enter new endpoint: '));
+        if (newEndpoint.trim()) {
+          newConfig.BASE_URL = newEndpoint.trim();
+          console.log(c.green('✅ Endpoint updated'));
+        } else {
+          console.log(c.yellow('ℹ️ Endpoint unchanged'));
+        }
+        break;
       }
-      break;
-    }
-    case '3': {
-      console.log(c.gray('\n💡 Enter models (comma or space separated):'));
-      console.log(c.gray(`   Current: ${config.MODELS.join(', ')}`));
-      const modelsInput = await simplePrompt(c.yellow('Enter new models: '));
-      const rawModels = parseModels(modelsInput);
-      if (rawModels.length > 0) {
-        newConfig.MODELS = resolveModelAliases(rawModels);
-        console.log(c.green(`✅ Models updated (${newConfig.MODELS.length} models)`));
-      } else {
-        console.log(c.yellow('ℹ️ Models unchanged'));
+      case '3': {
+        console.log(c.gray('\n💡 Enter models (comma or space separated):'));
+        console.log(c.gray(`   Current: ${config.MODELS.join(', ')}`));
+        const modelsInput = await simplePrompt(c.yellow('Enter new models: '));
+        const rawModels = parseModels(modelsInput);
+        if (rawModels.length > 0) {
+          newConfig.MODELS = resolveModelAliases(rawModels);
+          console.log(c.green(`✅ Models updated (${newConfig.MODELS.length} models)`));
+        } else {
+          console.log(c.yellow('ℹ️ Models unchanged'));
+        }
+        break;
       }
-      break;
-    }
-    case '4': {
-      console.log(c.cyan('\n🔄 Editing all fields...\n'));
-      
-      const newApiKey = await simplePrompt(c.yellow('Enter new API key: '));
-      if (newApiKey.trim()) newConfig.API_KEY = newApiKey.trim();
-      
-      const newEndpoint = await simplePrompt(c.yellow('Enter new endpoint: '));
-      if (newEndpoint.trim()) newConfig.BASE_URL = newEndpoint.trim();
-      
-      console.log(c.gray('\n💡 Enter models (comma or space separated):'));
-      console.log(c.gray(`   Current: ${config.MODELS.join(', ')}`));
-      const modelsInput = await simplePrompt(c.yellow('Enter new models: '));
-      const rawModels = parseModels(modelsInput);
-      if (rawModels.length > 0) {
-        newConfig.MODELS = resolveModelAliases(rawModels);
+      case '4': {
+        console.log(c.cyan('\n🔄 Editing all fields...\n'));
+        
+        const newApiKey = await simplePrompt(c.yellow('Enter new API key: '));
+        if (newApiKey.trim()) newConfig.API_KEY = newApiKey.trim();
+        
+        const newEndpoint = await simplePrompt(c.yellow('Enter new endpoint: '));
+        if (newEndpoint.trim()) newConfig.BASE_URL = newEndpoint.trim();
+        
+        console.log(c.gray('\n💡 Enter models (comma or space separated):'));
+        console.log(c.gray(`   Current: ${config.MODELS.join(', ')}`));
+        const modelsInput = await simplePrompt(c.yellow('Enter new models: '));
+        const rawModels = parseModels(modelsInput);
+        if (rawModels.length > 0) {
+          newConfig.MODELS = resolveModelAliases(rawModels);
+        }
+        
+        console.log(c.green('✅ All fields updated'));
+        break;
       }
-      
-      console.log(c.green('✅ All fields updated'));
-      break;
+      case '5':
+      default: {
+        console.log(c.yellow('ℹ️ Edit cancelled'));
+        return config;
+      }
     }
-    case '5':
-    default: {
-      console.log(c.yellow('ℹ️ Edit cancelled'));
+
+    console.log(c.green('\n✅ Updated configuration:'));
+    console.log(`  ${c.bold('API Key:')} ${c.dim('•'.repeat(Math.min(newConfig.API_KEY.length, 12)))}`);
+    console.log(`  ${c.bold('Endpoint:')} ${c.cyan(newConfig.BASE_URL)}`);
+    console.log(`  ${c.bold('Models:')} ${c.cyan(newConfig.MODELS.join(', '))}`);
+    console.log(c.dim(`\n   📦 ${REPO_URL}`));
+
+    const saveInput = await simplePrompt(c.yellow('\nSave changes? (Y/n): '));
+    const save = saveInput.trim().toLowerCase();
+    
+    if (save === 'n' || save === 'no') {
+      console.log(c.yellow('ℹ️ Changes discarded'));
       return config;
     }
+
+    return newConfig;
+  } catch (error: any) {
+    // ⭐ Re-throw to let index.ts handle it
+    throw error;
   }
-
-  console.log(c.green('\n✅ Updated configuration:'));
-  console.log(`  ${c.bold('API Key:')} ${c.dim('•'.repeat(Math.min(newConfig.API_KEY.length, 12)))}`);
-  console.log(`  ${c.bold('Endpoint:')} ${c.cyan(newConfig.BASE_URL)}`);
-  console.log(`  ${c.bold('Models:')} ${c.cyan(newConfig.MODELS.join(', '))}`);
-  console.log(c.dim(`\n   📦 ${REPO_URL}`));
-
-  const saveInput = await simplePrompt(c.yellow('\nSave changes? (Y/n): '));
-  const save = saveInput.trim().toLowerCase();
-  
-  if (save === 'n' || save === 'no') {
-    console.log(c.yellow('ℹ️ Changes discarded'));
-    return config;
-  }
-
-  return newConfig;
 }
 
 export function createSession(opts: { 
@@ -1088,6 +1127,13 @@ async function handleLine(rawLine: string) {
     currentAbortController = null;
   }
 }
+
+  function abortCurrentPrompt(): void {
+    if (currentPromptAbort) {
+      currentPromptAbort.abort();
+      currentPromptAbort = null;
+    }
+  }
 
   return { handleLine, cancelCurrentRequest };
 }
