@@ -524,6 +524,14 @@ const SYSTEM_PROMPT =
 "- No placeholder abstractions, no config the user didn't request, no premature generalization ('what if they need X later' is not a reason to build X now).\n" +
 "- If a request could be done in 1 file or 10, always default toward the smaller number unless the user's own words imply a bigger scope.\n\n" +
 
+"⚡ TOKEN EFFICIENCY:\n" +
+"1. Write efficient, concise code\n" +
+"2. Avoid unnecessary explanations\n" +
+"3. Use comments only when needed\n" +
+"4. Generate minimal but complete solutions\n" +
+"5. Reuse existing code when possible\n" +
+"6. For large projects, break into smaller files\n" +
+
 // ============================================================
 // COMMUNICATION STYLE
 // ============================================================
