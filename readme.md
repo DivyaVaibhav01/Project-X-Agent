@@ -18,7 +18,7 @@ curl -fsSL https://projectx.vaibhavrun.space/install.sh | bash
 ```
 #### 🪟 Windows:
 ```powershell
-powershell -c "irm https://projectx.vaibhavrun.space//install.ps1 | iex"
+powershell -c "irm https://projectx.vaibhavrun.space/install.ps1 | iex"
 ```
 
 
