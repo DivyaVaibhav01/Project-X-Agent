@@ -136,7 +136,6 @@ async function handleBuiltinCommand(input: string): Promise<boolean> {
     console.log(c.gray(`\n   📁 Working directory: ${c.cyan(workingDir)}`));
     console.log(c.gray(`   ${trustInfo.message}`));
     console.log(c.gray(`   Permissions: ${perms.readable ? c.green("✓ read") : c.red("✗ read")} | ${perms.writable ? c.green("✓ write") : c.red("✗ write")} | ${perms.executable ? c.green("✓ exec") : c.red("✗ exec")}`));
-    console.log(c.gray('\n   Type "trust" to manage trusted directories'));
     console.log(c.gray('   Type "clear" to clear the screen'));
     console.log(c.gray('   Type "reload" to reload configuration from .env'));
     console.log(c.gray('   Type "edit" to edit configuration'));
