@@ -12,11 +12,15 @@ import {
   getWorkingDirectory,
   setWorkingDirectory,
   resetWorkingDirectory,
-  checkDirectoryPermissions
+  checkDirectoryPermissions,
+  isDirectoryTrusted,
+  promptTrustDirectory,
+  getTrustStatus
 } from "./agent.js";
 
-const readline = require("node:readline");
-const fs = require("node:fs");
+import path from "node:path";
+import readline from "node:readline";
+import fs from "node:fs";
 
 // ============================================
 // STATE
@@ -82,7 +86,6 @@ function updateSpinnerMessage(message: string) {
 // ============================================
 // CTRL+C HANDLER
 // ============================================
-// Update the handleCtrlC function
 const handleCtrlC = () => {
   process.stdout.write("\r\x1b[K");
   
@@ -93,7 +96,6 @@ const handleCtrlC = () => {
   }
   process.stdout.write("\r\x1b[K");
   
-  // ⭐ NEW: Cancel any ongoing prompt (like edit)
   if (sessionInstance && sessionInstance.abortCurrentPrompt) {
     sessionInstance.abortCurrentPrompt();
   }
@@ -103,7 +105,7 @@ const handleCtrlC = () => {
       sessionInstance.cancelCurrentRequest();
     }
     isProcessing = false;
-    console.log(c.yellow("\n  ⏹️ Cancelled"));
+    console.log(c.yellow("\n  Request Cancelled"));
   }
   
   if (rlInstance) {
@@ -130,11 +132,11 @@ async function handleBuiltinCommand(input: string): Promise<boolean> {
     console.log(`   Mode: ${config.MODELS.length === 1 ? c.yellow("Single model") : c.yellow(`Race mode (${config.MODELS.length} models)`)}`);
     const workingDir = getWorkingDirectory();
     const perms = checkDirectoryPermissions(workingDir);
+    const trustInfo = getTrustStatus(workingDir);
     console.log(c.gray(`\n   📁 Working directory: ${c.cyan(workingDir)}`));
+    console.log(c.gray(`   ${trustInfo.message}`));
     console.log(c.gray(`   Permissions: ${perms.readable ? c.green("✓ read") : c.red("✗ read")} | ${perms.writable ? c.green("✓ write") : c.red("✗ write")} | ${perms.executable ? c.green("✓ exec") : c.red("✗ exec")}`));
-    console.log(c.gray('\n   Type "setdir" to view current directory'));
-    console.log(c.gray('   Type "setdir <path>" to change it (optional)'));
-    console.log(c.gray('   Type "resetdir" to reset to default codespace folder'));
+    console.log(c.gray('\n   Type "trust" to manage trusted directories'));
     console.log(c.gray('   Type "clear" to clear the screen'));
     console.log(c.gray('   Type "reload" to reload configuration from .env'));
     console.log(c.gray('   Type "edit" to edit configuration'));
@@ -146,82 +148,48 @@ async function handleBuiltinCommand(input: string): Promise<boolean> {
   }
   
   // ── EDIT ──
-if (cmd === "edit") {
+  if (cmd === "edit") {
     if (!config) {
       console.log(c.red("❌ No configuration available. Please reconfigure the agent."));
       return true;
     }
 
-    // ⭐ Set processing flag
     isProcessing = true;
     
     try {
       console.log(c.cyan("\n✏️ Editing configuration...\n"));
       const editedConfig = await editConfig(config);
+      
       if (JSON.stringify(editedConfig) !== JSON.stringify(config)) {
         saveConfig(editedConfig);
-        Object.assign(config, editedConfig);
+        
+        // This updates the SAME object that sessionInstance is using.
+        // It instantly applies the new settings without needing 'reload'.
+        Object.assign(config, editedConfig); 
+        
         console.log(c.green("✅ Configuration saved!"));
-        console.log(c.gray("   Note: You need to restart the session for changes to take full effect."));
+        console.log(c.gray("   New settings are now active.")); // No reload needed
+      } else {
+        console.log(c.gray("\n   No changes detected."));
       }
     } catch (error: any) {
-      // ⭐ Handle cancellation - don't show error message
       if (error.message === 'Input cancelled by user') {
-        // Already handled in agent.ts, just continue
+        // Already handled
       } else {
         console.log(c.red(`✕ ${error.message}`));
       }
     } finally {
-      // ⭐ ALWAYS reset processing flag
       isProcessing = false;
     }
-    return true;
-  }
-  
-  // ── SETDIR ──
-  if (cmd === "setdir") {
-    const parts = input.split(" ");
-    if (parts.length < 2) {
-      const currentDir = getWorkingDirectory();
-      const perms = checkDirectoryPermissions(currentDir);
-      console.log(c.yellow(`\n📁 Current working directory: ${c.cyan(currentDir)}`));
-      console.log(c.gray(`   Permissions: ${perms.readable ? c.green("✓ read") : c.red("✗ read")} | ${perms.writable ? c.green("✓ write") : c.red("✗ write")} | ${perms.executable ? c.green("✓ exec") : c.red("✗ exec")}`));
-      console.log(c.gray('   To change it: setdir <path>'));
-      console.log(c.gray('   Example: setdir ~/projects'));
-      console.log(c.gray('   (Leave empty to keep current directory)\n'));
-      return true;
+    
+    // ⭐ CRITICAL: Re-prompt the main readline to prevent logout ⭐
+    if (rlInstance) {
+      rlInstance.prompt();
     }
     
-    isProcessing = true;
-    const newDir = parts.slice(1).join(" ");
-    const resolvedDir = newDir.replace(/^~/, process.env.HOME || "");
-    const result = setWorkingDirectory(resolvedDir);
-    if (result.success) {
-      console.log(c.green(`\n✅ ${result.message}`));
-      const newPerms = checkDirectoryPermissions(resolvedDir);
-      console.log(c.gray(`   Permissions: ${newPerms.readable ? c.green("✓ read") : c.red("✗ read")} | ${newPerms.writable ? c.green("✓ write") : c.red("✗ write")} | ${newPerms.executable ? c.green("✓ exec") : c.red("✗ exec")}`));
-    } else {
-      console.log(c.red(`\n❌ ${result.message}\n`));
-    }
-    isProcessing = false;
     return true;
   }
-  
-  // ── RESETDIR ──
-  if (cmd === "resetdir" || cmd === "reset") {
-    isProcessing = true;
-    const result = resetWorkingDirectory();
-    if (result.success) {
-      console.log(c.green(`\n✅ ${result.message}`));
-      const newPerms = checkDirectoryPermissions(getWorkingDirectory());
-      console.log(c.gray(`   Permissions: ${newPerms.readable ? c.green("✓ read") : c.red("✗ read")} | ${newPerms.writable ? c.green("✓ write") : c.red("✗ write")} | ${newPerms.executable ? c.green("✓ exec") : c.red("✗ exec")}`));
-    } else {
-      console.log(c.red(`\n❌ ${result.message}\n`));
-    }
-    isProcessing = false;
-    return true;
-  }
-  
+
   // ── RELOAD ──
   if (cmd === "reload") {
     isProcessing = true;
@@ -286,8 +254,34 @@ if (cmd === "edit") {
 async function main() {
   process.stdout.write(renderBanner());
 
+  // ⭐ Check if current directory is trusted
+  const currentDir = getWorkingDirectory();
+  const isTrusted = isDirectoryTrusted(currentDir);
+  
+  if (!isTrusted) {
+    const trusted = await promptTrustDirectory(currentDir);
+    if (!trusted) {
+      process.exit(0);
+    }
+    console.log(c.green(`\n✅ Directory trusted.\n`));
+  }
+
+  // ⭐ Try to load config
   config = loadConfig();
   
+  // ⭐ If loadConfig fails, explicitly check the installation folder
+  if (!config) {
+    const configRoot = process.env.PROJECT_X_ROOT || path.resolve(import.meta.dir, '..');
+    const envPath = path.join(configRoot, '.env');
+    
+    // Manually check if the .env file exists in the installation folder
+    if (fs.existsSync(envPath)) {
+      console.log(c.yellow("\n📂 Found .env in installation folder, loading manually..."));
+      config = loadConfig(); // This should now work because agent.js is fixed!
+    }
+  }
+
+  // ⭐ If STILL no config, then prompt
   if (!config) {
     console.log(c.yellow("\n📝 No configuration found. Let's set up Project-X Agent.\n"));
     config = await promptUserForConfig();
@@ -301,11 +295,11 @@ async function main() {
     
     const workingDir = getWorkingDirectory();
     const perms = checkDirectoryPermissions(workingDir);
+    const trustInfo = getTrustStatus(workingDir);
     console.log(c.gray(`\n   📁 Working directory: ${c.cyan(workingDir)}`));
+    console.log(c.gray(`   ${trustInfo.message}`));
     console.log(c.gray(`   Permissions: ${perms.readable ? c.green("✓ read") : c.red("✗ read")} | ${perms.writable ? c.green("✓ write") : c.red("✗ write")} | ${perms.executable ? c.green("✓ exec") : c.red("✗ exec")}`));
-    console.log(c.gray('\n   Type "setdir" to view current directory'));
-    console.log(c.gray('   Type "setdir <path>" to change it (optional)'));
-    console.log(c.gray('   Type "resetdir" to reset to default codespace folder'));
+    console.log(c.gray('\n   💡 Files will be saved to your current directory'));
     console.log(c.gray('   Type "clear" to clear the screen'));
     console.log(c.gray('   Type "reload" to reload configuration from .env'));
     console.log(c.gray('   Type "edit" to edit configuration'));

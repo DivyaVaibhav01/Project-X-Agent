@@ -3,6 +3,56 @@ import fs from "fs";
 import path from "path";
 import readlineSync from 'readline-sync';
 
+// ============================================================
+// TRUSTED DIRECTORY SYSTEM
+// ============================================================
+
+const TRUST_FILE = path.join(process.cwd(), '.projectx-trust.json');
+
+
+export function isDirectoryTrusted(dir: string): boolean {
+  return false;
+}
+
+export function getTrustStatus(dir: string): { trusted: boolean; message: string } {
+  return {
+    trusted: false,
+    message: `⚠️ ${dir} is not trusted`
+  };
+}
+
+export function promptTrustDirectory(dir: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const readline = require("node:readline");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    const resolved = path.resolve(dir);
+    
+    console.log(c.yellow(`\n⚠️  Directory: ${c.cyan(resolved)}`));
+    console.log(c.gray(`   This directory is not in your trusted list.\n`));
+    console.log(c.gray(`   Project-X Agent will be able to read, write, and delete files here.`));
+    console.log(c.gray(`   Only continue if you trust this directory.\n`));
+    console.log(c.gray(`   ${c.green('Yes')}, I trust this folder`));
+    console.log(c.gray(`   ${c.red('No')}, don't trust and exit\n`));
+
+    rl.question(c.yellow(`   Do you trust this directory? (yes/no): `), (answer: string) => {
+      rl.close();
+      const choice = answer.trim().toLowerCase();
+      
+      if (choice === 'yes' || choice === 'y') {
+        // ⭐ Just resolve true - no saving, no extra questions
+        resolve(true);
+      } else {
+        console.log(c.red(`\n❌ Exiting. Directory not trusted.\n`));
+        resolve(false);
+      }
+    });
+  });
+}
+
 export interface Config {
   API_KEY: string;
   BASE_URL: string;
@@ -229,7 +279,7 @@ const tools: any[] = [
 ];
 
 function runTool(fs: any, name: string, args: any): any {
-  const workingDir = getWorkingDirectory();
+  const workingDir = process.cwd(); // ⭐ Use current directory directly
 
   try {
     if (name === "read_file") {
@@ -252,7 +302,7 @@ function runTool(fs: any, name: string, args: any): any {
       }
 
       fs.writeFileSync(fullPath, args.content, "utf-8");
-      return `✅ File written: ${args.path} (${args.content.length} chars)`;
+      return `✅ File written: ${fullPath} (${args.content.length} chars)`;
     }
 
     if (name === "delete_file") {
@@ -266,7 +316,7 @@ function runTool(fs: any, name: string, args: any): any {
       }
 
       fs.unlinkSync(fullPath);
-      return `🗑️ File deleted: ${args.path}`;
+      return `🗑️ File deleted: ${fullPath}`;
     }
 
     return `Error: Unknown tool "${name}"`;
@@ -570,7 +620,7 @@ const SYSTEM_PROMPT =
 // ============================================================
 "If the user asks who made you, what this project is, or seems happy with a result, you may casually mention it's open-source (" + REPO_URL + "). Don't push this unprompted or repeat it often — once is plenty.\n\n" +
 
-"USER-FACING CLI COMMANDS (reference only, you don't execute these): edit · reload · reconfig · setdir <path> · resetdir · clear · exit/quit";
+"USER-FACING CLI COMMANDS (reference only, you don't execute these): edit · reload · reconfig · <path> · clear · exit/quit";
 
 // Configuration management
 const CONFIG_FILE = path.join(process.cwd(), '.env');
@@ -581,8 +631,20 @@ export interface Config {
   MODELS: string[];
 }
 
+// agent.js
+
+// 1. Define a helper to get the correct installation directory
+function getConfigPath() {
+  // If PROJECT_X_ROOT is passed (from src/run.ts), use that. 
+  // Otherwise, fall back to the parent directory of this file.
+  const configRoot = process.env.PROJECT_X_ROOT || path.resolve(import.meta.dir, '..');
+  return path.join(configRoot, '.env');
+}
+
 export function loadConfig(): Config | null {
   try {
+    const CONFIG_FILE = getConfigPath(); // Get the dynamic path
+    
     if (fs.existsSync(CONFIG_FILE)) {
       const envContent = fs.readFileSync(CONFIG_FILE, 'utf-8');
       const config: Config = {
@@ -617,6 +679,8 @@ export function loadConfig(): Config | null {
 }
 
 export function saveConfig(config: Config): void {
+  const CONFIG_PATH = getConfigPath(); // Get the dynamic path
+
   const content = `# Project-X Agent Configuration
 # Generated on ${new Date().toISOString()}
 
@@ -884,12 +948,12 @@ export async function editConfig(config: Config): Promise<Config> {
       if (['1', '2', '3', '4', '5'].includes(choice)) {
         validChoice = true;
       } else {
-        //
+        // 
       }
     } catch (error: any) {
       // The user pressed Ctrl+C
       if (error.message === 'Input cancelled by user') {
-        console.log(c.yellow('\n  ⏹️ Edit cancelled'));
+        console.log(c.yellow('\n  Edit cancelled'));
         return config;
       }
       throw error;
@@ -974,6 +1038,9 @@ export async function editConfig(config: Config): Promise<Config> {
       console.log(c.yellow('ℹ️ Changes discarded'));
       return config;
     }
+
+    console.log(c.green('✅ Changes saved'));
+    console.log(c.gray('   Type "reload" to apply the new settings to your current session.')); // Added this line
 
     return newConfig;
   } catch (error: any) {
@@ -1146,9 +1213,6 @@ async function handleLine(rawLine: string) {
   return { handleLine, cancelCurrentRequest };
 }
 
-const DIR_CONFIG_FILE = path.join(process.cwd(), '.projectx-dir');
-const DEFAULT_DIR_NAME = 'codespace';
-
 export function checkDirectoryPermissions(dir: string): {
   exists: boolean;
   readable: boolean;
@@ -1213,22 +1277,7 @@ export function checkDirectoryPermissions(dir: string): {
 }
 
 export function getWorkingDirectory(): string {
-  try {
-    if (fs.existsSync(DIR_CONFIG_FILE)) {
-      const dir = fs.readFileSync(DIR_CONFIG_FILE, 'utf-8').trim();
-      if (dir && fs.existsSync(dir)) {
-        return dir;
-      }
-    }
-  } catch (e) {}
-  
-  const defaultDir = path.join(process.cwd(), DEFAULT_DIR_NAME);
-  if (!fs.existsSync(defaultDir)) {
-    try {
-      fs.mkdirSync(defaultDir, { recursive: true });
-    } catch (e) {}
-  }
-  return defaultDir;
+  return process.cwd();
 }
 
 export function setWorkingDirectory(dir: string): { success: boolean; message: string } {
@@ -1256,8 +1305,17 @@ export function setWorkingDirectory(dir: string): { success: boolean; message: s
       return { success: false, message: `No write permission: ${resolvedPath}` };
     }
 
-    fs.writeFileSync(DIR_CONFIG_FILE, resolvedPath, 'utf-8');
-    return { success: true, message: `Working directory set to: ${resolvedPath}` };
+    // Check if directory is trusted
+    if (!isDirectoryTrusted(resolvedPath)) {
+      return { 
+        success: false, 
+        message: `Directory not trusted: ${resolvedPath}. Use "trust add ${resolvedPath}" to trust it.` 
+      };
+    }
+
+    // Change to the directory
+    process.chdir(resolvedPath);
+    return { success: true, message: `Switched to: ${resolvedPath}` };
   } catch (error: any) {
     return { success: false, message: error.message };
   }
@@ -1265,18 +1323,17 @@ export function setWorkingDirectory(dir: string): { success: boolean; message: s
 
 export function resetWorkingDirectory(): { success: boolean; message: string } {
   try {
-    if (fs.existsSync(DIR_CONFIG_FILE)) {
-      fs.unlinkSync(DIR_CONFIG_FILE);
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    if (homeDir) {
+      process.chdir(homeDir);
+      return { success: true, message: `Reset to home directory: ${homeDir}` };
     }
-    const defaultDir = path.join(process.cwd(), DEFAULT_DIR_NAME);
-    if (!fs.existsSync(defaultDir)) {
-      fs.mkdirSync(defaultDir, { recursive: true });
-    }
-    return { success: true, message: `Reset to default directory: ${defaultDir}` };
+    return { success: false, message: 'Could not find home directory' };
   } catch (error: any) {
     return { success: false, message: error.message };
   }
 }
+
 
 export default {
   c,
@@ -1299,4 +1356,7 @@ export default {
   setWorkingDirectory,
   resetWorkingDirectory,
   checkDirectoryPermissions,
+  isDirectoryTrusted,
+  getTrustStatus,
+  promptTrustDirectory,
 };

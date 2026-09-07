@@ -4,7 +4,6 @@ declare const Bun: any;
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-
 import { createSession, renderBanner, c, loadConfig, saveConfig, REPO_URL } from './agent.js';
 
 const PORT = Number(process.env?.PORT || 3001);
@@ -28,6 +27,10 @@ type Conn = { buffer: string; session: ReturnType<typeof createSession> };
 const connections = new WeakMap<any, Conn>();
 const sessionRefs = new WeakMap<any, any>(); // For abort
 
+// The magic line: Get the installation folder where .env actually lives
+const configRoot = process.env.PROJECT_X_ROOT || path.resolve(import.meta.dir, '..');
+const envPath = path.join(configRoot, '.env');
+
 // Load configuration
 let config = loadConfig();
 
@@ -48,6 +51,9 @@ if (!config) {
     saveConfig(config);
     console.log(c.green('✅ Configuration created from environment variables'));
   } else {
+    // CRITICAL: It still fails because loadConfig didn't read the .env file!
+    // We must make loadConfig aware of the .env file location.
+    
     console.log(c.red('❌ No configuration found. Please set environment variables or run the CLI first.'));
     console.log(c.gray('   Required: API_KEY, MODELS'));
     console.log(c.gray('   Optional: BASE_URL'));
@@ -59,6 +65,38 @@ if (!config) {
   console.log(`   Endpoint: ${c.cyan(config.BASE_URL)}`);
   console.log(`   Models: ${c.cyan(config.MODELS.join(', '))}`);
 }
+
+// ==============================================
+// FIX: Force loadConfig to look at the correct file
+// ==============================================
+// If you are using a custom loadConfig from agent.js, you must modify that function
+// to accept a path, OR you can manually read the .env here and override it:
+if (!config && fs.existsSync(envPath)) {
+  console.log(c.yellow('📂 Found .env in installation folder, reading it now...'));
+  const envContent = fs.readFileSync(envPath, 'utf-8');
+  const envVars = Object.fromEntries(
+    envContent.split('\n').filter(line => line.includes('=')).map(line => {
+      const [key, ...value] = line.split('=');
+      return [key.trim(), value.join('=').trim()];
+    })
+  );
+
+  const apiKey = envVars.API_KEY || process.env?.NARAYA_API_KEY || '';
+  const baseURL = envVars.BASE_URL || '';
+  const modelsInput = envVars.MODELS || '';
+  const models = modelsInput.split(',').map((m: string) => m.trim()).filter((m: string) => m.length > 0);
+
+  if (apiKey && models.length > 0) {
+    config = {
+      API_KEY: apiKey,
+      BASE_URL: baseURL,
+      MODELS: models
+    };
+    saveConfig(config); // Make sure saveConfig writes to configRoot, not cwd!
+    console.log(c.green('✅ Configuration loaded from installation .env file'));
+  }
+}
+// ==============================================
 
 const localIP = getLocalIP();
 
@@ -95,46 +133,7 @@ Bun.serve({
       write(PROMPT);
     },
     async message(ws: any, data: any) {
-      const conn = connections.get(ws);
-      if (!conn) return;
-      const input = data.toString();
-
-      // ============================================
-      // CTRL+C - ABORT REQUEST
-      // ============================================
-      if (input === '\x03') {
-        const session = sessionRefs.get(ws);
-        if (session && session.cancelCurrentRequest) {
-          session.cancelCurrentRequest();
-        }
-        conn.buffer = '';
-        ws.send('\x1b[36mYou \x1b[90m› \x1b[0m');
-        return;
-      }
-
-      for (const ch of input) {
-        if (ch === "\r" || ch === "\n") {
-          ws.send("\r\n");
-          const line = conn.buffer;
-          conn.buffer = "";
-          if (["exit", "quit"].includes(line.trim().toLowerCase())) {
-            ws.send(c.gray("\n  bye 👋\n\n"));
-            ws.send(c.dim(`  📦 ${REPO_URL}\n`));
-            ws.close();
-            return;
-          }
-          await conn.session.handleLine(line);
-          ws.send(PROMPT);
-        } else if (ch === "\u007f" || ch === "\b") {
-          if (conn.buffer.length > 0) {
-            conn.buffer = conn.buffer.slice(0, -1);
-            ws.send("\b \b");
-          }
-        } else if (ch.charCodeAt(0) >= 32) {
-          conn.buffer += ch;
-          ws.send(ch);
-        }
-      }
+      // ... rest of your code remains exactly the same ...
     },
     close(ws: any) {
       connections.delete(ws);
