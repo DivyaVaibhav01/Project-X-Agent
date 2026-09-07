@@ -84,11 +84,13 @@ function updateSpinnerMessage(message: string) {
 }
 
 // ============================================
-// CTRL+C HANDLER
+// SIMPLIFIED CTRL+C HANDLER
 // ============================================
 const handleCtrlC = () => {
+  // Clear the current line
   process.stdout.write("\r\x1b[K");
   
+  // Stop spinner
   if (spinnerInterval) {
     clearInterval(spinnerInterval);
     spinnerInterval = null;
@@ -96,22 +98,33 @@ const handleCtrlC = () => {
   }
   process.stdout.write("\r\x1b[K");
   
-  if (sessionInstance && sessionInstance.abortCurrentPrompt) {
-    sessionInstance.abortCurrentPrompt();
-  }
-  
+  // ⭐ Check if agent is processing
   if (isProcessing) {
+    // Cancel the request
     if (sessionInstance && sessionInstance.cancelCurrentRequest) {
       sessionInstance.cancelCurrentRequest();
     }
+    
+    // Show cancellation message
+    console.log(c.yellow(`  ⏹️ Cancelled`));
+    
+    // Reset flag
     isProcessing = false;
-    console.log(c.yellow("\n  Request Cancelled"));
-  }
-  
-  if (rlInstance) {
-    rlInstance.prompt();
+    
+    // Show prompt
+    if (rlInstance) {
+      rlInstance.prompt();
+    }
+  } else {
+    // ⭐ Just show prompt again, don't exit
+    if (rlInstance) {
+      rlInstance.prompt();
+    }
   }
 };
+
+// Process level handler
+process.on("SIGINT", handleCtrlC);
 
 // Process level handler
 process.on("SIGINT", handleCtrlC);
@@ -120,7 +133,42 @@ process.on("SIGINT", handleCtrlC);
 // COMMANDS
 // ============================================
 async function handleBuiltinCommand(input: string): Promise<boolean> {
+
+  if (isProcessing) {
+    console.log(c.yellow(`  ⏳ Agent is processing... Please wait.\n`));
+    return true;
+  }
+
   const cmd = input.toLowerCase();
+  if (cmd === "new session" || cmd === "ns") {
+    if (sessionInstance && sessionInstance.newSession) {
+      sessionInstance.newSession();
+    }
+    return true;
+  }
+
+  if (cmd === "session" || cmd === "si") {
+    if (sessionInstance && sessionInstance.getSessionInfo) {
+      const info = sessionInstance.getSessionInfo();
+      if (info) {
+        console.log(c.cyan(`\n📋 Session Info:`));
+        console.log(`   ID: ${info.id}`);
+        console.log(`   Messages: ${info.messageCount}`);
+        console.log(`   Duration: ${info.duration}s\n`);
+      } else {
+        console.log(c.gray(`\n  No active session.\n`));
+      }
+    }
+    return true;
+  }
+
+  if (cmd === "cancel session" || cmd === "cs") {
+    if (sessionInstance && sessionInstance.cancelCurrentSession) {
+      sessionInstance.cancelCurrentSession();
+      console.log(c.green(`✅ Session cancelled\n`));
+    }
+    return true;
+  }
   
   // ── CLEAR ──
   if (cmd === "clear" || cmd === "cls") {
@@ -331,49 +379,63 @@ async function main() {
   rl.prompt();
 
   // ── Line handler ──
-  rl.on("line", async (line: string) => {
-    const input = line.trim();
-    
-    if (isProcessing) {
-      return;
-    }
-    
-    if (!input) {
-      rl.prompt();
-      return;
-    }
-    
-    // ── Exit ──
-    if (["exit", "quit", "q"].includes(input.toLowerCase())) {
-      console.log(c.gray("\n  bye 👋\n\n"));
-      console.log(c.dim(`  📦 ${REPO_URL}\n`));
-      rl.close();
-      process.exit(0);
-      return;
-    }
-    
-    // ── Check built-in commands ──
-    const handled = await handleBuiltinCommand(input);
-    if (handled) {
-      rl.prompt();
-      return;
-    }
-    
-    // ── Send to AI ──
-    isProcessing = true;
-    startSpinner("processing...");
-    
-    try {
-      await sessionInstance.handleLine(input);
-      stopSpinner("Request completed", true);
-    } catch (error: any) {
-      stopSpinner(`Error: ${error.message}`, false);
-      console.log(c.red(`✕ ${error.message}`));
-    } finally {
-      isProcessing = false;
-      rl.prompt();
-    }
-  });
+
+
+function isTerminalNoise(input: string): boolean {
+  // Filter out ANSI escape sequences
+  if (/\x1B\[[0-9;]*[A-Za-z]/.test(input)) return true;
+  // Filter out control characters
+  if (/[\u0000-\u001F]/.test(input)) return true;
+  // Filter out box drawing characters
+  if (/^[━─═╔╗╚╝║│┃┆┇]+$/.test(input)) return true;
+  // Filter out spinner frames
+  if (/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/.test(input)) return true;
+  // Filter out prompt strings
+  if (input.includes('You ›')) return true;
+  if (input.includes('›')) return true;
+  // Filter out "Press Ctrl+C" message
+  if (input.includes('Press Ctrl+C')) return true;
+  return false;
+}
+
+rl.on("line", async (line: string) => {
+  const input = line.trim();
+
+  if (isTerminalNoise(input)) {
+    return;
+  }
+
+  
+  // ⭐ Check if processing - block everything except Ctrl+C
+  if (isProcessing) {
+    return;
+  }
+  
+  if (!input) {
+    rl.prompt();
+    return;
+  }
+  
+  // ── Exit ──
+  if (["exit", "quit", "q"].includes(input.toLowerCase())) {
+    console.log(c.gray("\n  bye 👋\n\n"));
+    console.log(c.dim(`  📦 ${REPO_URL}\n`));
+    rl.close();
+    process.exit(0);
+    return;
+  }
+  
+  // ── Check built-in commands ──
+  const handled = await handleBuiltinCommand(input);
+  if (handled) {
+    rl.prompt();
+    return;
+  }
+  
+  // ── Send to AI ──
+  await sessionInstance.handleLine(input);
+  rl.prompt();
+});
 
   rl.on("close", () => {
     process.exit(0);

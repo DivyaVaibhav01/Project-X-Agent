@@ -133,7 +133,53 @@ export const BRAND = "Project-X Agent";
 export const TAGLINE = "a compile of multiple modules, made by Vaibhav Dev";
 export const REPO_URL = "https://github.com/DivyaVaibhav01/Project-X-Agent";
 export const RATE_LIMIT = { max: 5, windowMs: 60_000 };
-const CONFIG_PATH: any = path.join(process.cwd(), '.env');
+
+// ============================================================
+// SESSION-BASED CHAT SYSTEM
+// ============================================================
+
+let currentSession: {
+  id: string;
+  history: any[];
+  startTime: number;
+  isActive: boolean;
+  model?: string;
+} | null = null;
+
+let isProcessing = false;
+
+function generateSessionId(): string {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 8);
+  return `session_${timestamp}_${random}`;
+}
+
+function startNewSession(): void {
+  if (currentSession) {
+    currentSession.isActive = false;
+  }
+  currentSession = {
+    id: generateSessionId(),
+    history: [{ role: "system", content: SYSTEM_PROMPT }],
+    startTime: Date.now(),
+    isActive: true,
+  };
+}
+
+function getCurrentHistory(): any[] {
+  if (!currentSession || !currentSession.isActive) {
+    startNewSession();
+  }
+  return currentSession?.history || [{ role: "system", content: SYSTEM_PROMPT }];
+}
+
+function cancelCurrentSession(): void {
+  if (currentSession) {
+    currentSession.isActive = false;
+    currentSession = null;
+    isProcessing = false;
+  }
+}
 
 // Model aliases - map user-friendly names to actual model names
 export const MODEL_ALIASES: Record<string, string> = {
@@ -1058,12 +1104,11 @@ export function createSession(opts: {
   const { API_KEY: apiKey, BASE_URL: baseURL, MODELS: models } = config;
   
   const client = new OpenAI({ baseURL, apiKey });
-  const history: any[] = [{ role: "system", content: SYSTEM_PROMPT }];
   const requestTimestamps: number[] = [];
+  
+  // ⭐ Start first session
+  startNewSession();
 
-  // ============================================
-  // Cancel current request
-  // ============================================
   let currentAbortController: AbortController | null = null;
   let spinnerTimer: any = null;
 
@@ -1089,9 +1134,33 @@ function cancelCurrentRequest(): boolean {
   }
   return false;
 }
+
+  function newSession(): void {
+    cancelCurrentSession();
+    startNewSession();
+    write(c.green(`  ✅ New session started\n`));
+  }
+
+  function getSessionInfo(): { id: string; messageCount: number; duration: number } | null {
+    if (!currentSession) return null;
+    return {
+      id: currentSession.id,
+      messageCount: currentSession.history.filter(h => h.role === 'user').length,
+      duration: Math.floor((Date.now() - currentSession.startTime) / 1000),
+    };
+  }
+
 async function raceModels(client: OpenAI, messages: any[]): Promise<{ model: string; message: any }> {
+  // ⭐ Create new abort controller with timeout
   currentAbortController = new AbortController();
   const signal = currentAbortController.signal;
+
+  // ⭐ Add timeout to prevent hanging
+  const timeoutId = setTimeout(() => {
+    if (currentAbortController) {
+      currentAbortController.abort();
+    }
+  }, 120000); // 2 minute timeout
 
   try {
     if (models.length === 1) {
@@ -1101,8 +1170,10 @@ async function raceModels(client: OpenAI, messages: any[]): Promise<{ model: str
           messages, 
           tools 
         }, { signal });
+        clearTimeout(timeoutId);
         return { model: models[0], message: res.choices[0].message };
       } catch (err: any) {
+        clearTimeout(timeoutId);
         // ⭐ Check if aborted
         if (err.name === 'AbortError' || signal.aborted) {
           throw new Error('Request cancelled by user');
@@ -1116,10 +1187,15 @@ async function raceModels(client: OpenAI, messages: any[]): Promise<{ model: str
     const attempts = models.map((model, i) =>
       client.chat.completions
         .create({ model, messages, tools }, { signal: controllers[i].signal })
-        .then((res) => ({ model, message: res.choices[0].message }))
+        .then((res) => {
+          // ⭐ Check if main signal was aborted
+          if (signal.aborted) {
+            throw new Error('Request cancelled by user');
+          }
+          return { model, message: res.choices[0].message };
+        })
         .catch((err) => {
-          // ⭐ Check if aborted
-          if (err.name === 'AbortError' || controllers[i].signal.aborted) {
+          if (err.name === 'AbortError' || controllers[i].signal.aborted || signal.aborted) {
             throw new Error('Request cancelled by user');
           }
           throw err;
@@ -1128,22 +1204,25 @@ async function raceModels(client: OpenAI, messages: any[]): Promise<{ model: str
     
     try {
       const winner = await Promise.any(attempts);
+      clearTimeout(timeoutId);
       controllers.forEach((ctl) => ctl.abort());
       return winner;
     } catch (err: any) {
+      clearTimeout(timeoutId);
       controllers.forEach((ctl) => ctl.abort());
-      // ⭐ Check if any error was due to cancellation
       if (err.errors?.some((e: any) => e.message === 'Request cancelled by user')) {
         throw new Error('Request cancelled by user');
       }
       throw err;
     }
   } catch (err: any) {
+    clearTimeout(timeoutId);
     if (err.name === 'AbortError' || err.message?.includes('abort') || err.message === 'Request cancelled by user') {
       throw new Error('Request cancelled by user');
     }
     throw err;
   } finally {
+    clearTimeout(timeoutId);
     currentAbortController = null;
   }
 }
@@ -1161,6 +1240,16 @@ async function raceModels(client: OpenAI, messages: any[]): Promise<{ model: str
 async function handleLine(rawLine: string) {
   const text = rawLine.trim();
   if (!text) return;
+  
+  // ⭐ Block if processing
+  if (isProcessing) {
+    write(c.yellow(`  ⏳ Already processing... Please wait.\r\n`));
+    return;
+  }
+
+  if (!currentSession || !currentSession.isActive) {
+    startNewSession();
+  }
 
   const limit = checkRateLimit();
   if (!limit.ok) {
@@ -1169,6 +1258,9 @@ async function handleLine(rawLine: string) {
     return;
   }
 
+  // ⭐ Set processing flag
+  isProcessing = true;
+  const history = getCurrentHistory();
   history.push({ role: "user", content: text });
   startSpinner(`processing...`);
 
@@ -1180,7 +1272,9 @@ async function handleLine(rawLine: string) {
     while (msg.tool_calls?.length) {
       if (currentAbortController?.signal.aborted) {
         stopSpinner();
-        write(c.yellow("Cancelled Request") + "\r\n");
+        history.pop();
+        cancelCurrentSession();
+        write(c.yellow(`  ⏹️ Cancelled`) + "\r\n");
         return;
       }
 
@@ -1200,7 +1294,9 @@ async function handleLine(rawLine: string) {
       
       if (currentAbortController?.signal.aborted) {
         stopSpinner();
-        write(c.yellow("Cancelled Request") + "\r\n");
+        history.pop();
+        cancelCurrentSession();
+        write(c.yellow(`  ⏹️ Cancelled`) + "\r\n");
         return;
       }
       
@@ -1210,28 +1306,40 @@ async function handleLine(rawLine: string) {
 
     history.push(msg);
     write(`${c.cyan(c.bold("●"))} ${c.boldWhite(BRAND)}\r\n${renderReply(msg.content)}\r\n\r\n`);
+    
+    const info = getSessionInfo();
+    if (info) {
+      write(c.dim(`  📋 Session: ${info.id} · ${info.messageCount} messages · ${info.duration}s\n`));
+    }
+    
   } catch (e: any) {
     stopSpinner();
-    // ⭐ Check if it's a cancellation error
     if (e.message === 'Request cancelled by user' || e.name === 'AbortError') {
+      history.pop();
+      cancelCurrentSession();
       write(c.yellow(`  ⏹️ Cancelled`) + "\r\n");
     } else {
+      history.pop();
       write(c.red(`✕ ${e.message}`) + "\r\n");
+      cancelCurrentSession();
+      startNewSession();
+      write(c.gray(`  💡 Started new session due to error\n`));
     }
   } finally {
-    stopSpinner(); // ⭐ Always stop spinner
+    // ⭐ ALWAYS reset the flag
+    stopSpinner();
     currentAbortController = null;
+    isProcessing = false;
   }
 }
 
-  function abortCurrentPrompt(): void {
-    if (currentPromptAbort) {
-      currentPromptAbort.abort();
-      currentPromptAbort = null;
-    }
-  }
-
-  return { handleLine, cancelCurrentRequest };
+  return { 
+    handleLine, 
+    cancelCurrentRequest, 
+    newSession,
+    getSessionInfo,
+    cancelCurrentSession,
+  };
 }
 
 export function checkDirectoryPermissions(dir: string): {
