@@ -118,8 +118,8 @@ async function main() {
                 console.log('');
                 console.log('\x1b[32m✅ Project-X has been successfully uninstalled!\x1b[0m');
                 console.log('\x1b[90m   You can reinstall with:\x1b[0m');
-                console.log('\x1b[36m 🐧 Linux and 🍎 macOS: curl -fsSL https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Agent/main/install/all/install.sh | bash\x1b[0m');
-                console.log('\x1b[36m 🪟 Windows: powershell -c "irm https://raw.githubusercontent.com/DivyaVaibhav01/Project-X-Agent/main/install/windows/install.ps1 | iex"\x1b[0m');
+                console.log('\x1b[36m 🐧 Linux and 🍎 macOS: curl -fsSL https://projectx.vaibhavrun.space/install.sh | bash\x1b[0m');
+                console.log('\x1b[36m 🪟 Windows:powershell -c "irm https://projectx.vaibhavrun.space/install.ps1 | iex"\x1b[0m');
                 console.log('');
                 
                 process.exit(0);
