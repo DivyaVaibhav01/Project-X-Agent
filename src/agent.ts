@@ -1080,59 +1080,73 @@ export function createSession(opts: {
     write("\r\x1b[K");
   }
 
-  function cancelCurrentRequest(): boolean {
-    if (currentAbortController) {
-      currentAbortController.abort();
-      currentAbortController = null;
-      stopSpinner(); // ← ADD THIS - Stop spinner immediately
-      return true;
-    }
-    return false;
+function cancelCurrentRequest(): boolean {
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+    stopSpinner();
+    return true;
   }
+  return false;
+}
+async function raceModels(client: OpenAI, messages: any[]): Promise<{ model: string; message: any }> {
+  currentAbortController = new AbortController();
+  const signal = currentAbortController.signal;
 
-  async function raceModels(client: OpenAI, messages: any[]): Promise<{ model: string; message: any }> {
-    // Create new abort controller
-    currentAbortController = new AbortController();
-    const signal = currentAbortController.signal;
-
-    try {
-      if (models.length === 1) {
+  try {
+    if (models.length === 1) {
+      try {
         const res = await client.chat.completions.create({ 
           model: models[0], 
           messages, 
           tools 
         }, { signal });
         return { model: models[0], message: res.choices[0].message };
-      }
-
-      const controllers = models.map(() => new AbortController());
-      
-      const attempts = models.map((model, i) =>
-        client.chat.completions
-          .create({ model, messages, tools }, { signal: controllers[i].signal })
-          .then((res) => ({ model, message: res.choices[0].message }))
-          .catch((err) => {
-            throw err;
-          })
-      );
-      
-      try {
-        const winner = await Promise.any(attempts);
-        controllers.forEach((ctl) => ctl.abort());
-        return winner;
       } catch (err: any) {
-        controllers.forEach((ctl) => ctl.abort());
+        // ⭐ Check if aborted
+        if (err.name === 'AbortError' || signal.aborted) {
+          throw new Error('Request cancelled by user');
+        }
         throw err;
       }
+    }
+
+    const controllers = models.map(() => new AbortController());
+    
+    const attempts = models.map((model, i) =>
+      client.chat.completions
+        .create({ model, messages, tools }, { signal: controllers[i].signal })
+        .then((res) => ({ model, message: res.choices[0].message }))
+        .catch((err) => {
+          // ⭐ Check if aborted
+          if (err.name === 'AbortError' || controllers[i].signal.aborted) {
+            throw new Error('Request cancelled by user');
+          }
+          throw err;
+        })
+    );
+    
+    try {
+      const winner = await Promise.any(attempts);
+      controllers.forEach((ctl) => ctl.abort());
+      return winner;
     } catch (err: any) {
-      if (err.name === 'AbortError' || err.message?.includes('abort')) {
+      controllers.forEach((ctl) => ctl.abort());
+      // ⭐ Check if any error was due to cancellation
+      if (err.errors?.some((e: any) => e.message === 'Request cancelled by user')) {
         throw new Error('Request cancelled by user');
       }
       throw err;
-    } finally {
-      currentAbortController = null;
     }
+  } catch (err: any) {
+    if (err.name === 'AbortError' || err.message?.includes('abort') || err.message === 'Request cancelled by user') {
+      throw new Error('Request cancelled by user');
+    }
+    throw err;
+  } finally {
+    currentAbortController = null;
   }
+}
 
   function checkRateLimit(): { ok: true } | { ok: false; retryInMs: number } {
     const now = Date.now();
@@ -1166,6 +1180,7 @@ async function handleLine(rawLine: string) {
     while (msg.tool_calls?.length) {
       if (currentAbortController?.signal.aborted) {
         stopSpinner();
+        write(c.yellow("Cancelled Request") + "\r\n");
         return;
       }
 
@@ -1185,6 +1200,7 @@ async function handleLine(rawLine: string) {
       
       if (currentAbortController?.signal.aborted) {
         stopSpinner();
+        write(c.yellow("Cancelled Request") + "\r\n");
         return;
       }
       
@@ -1196,9 +1212,14 @@ async function handleLine(rawLine: string) {
     write(`${c.cyan(c.bold("●"))} ${c.boldWhite(BRAND)}\r\n${renderReply(msg.content)}\r\n\r\n`);
   } catch (e: any) {
     stopSpinner();
-    write(c.red(`✕ ${e.message}`) + "\r\n");
+    // ⭐ Check if it's a cancellation error
+    if (e.message === 'Request cancelled by user' || e.name === 'AbortError') {
+      write(c.yellow(`  ⏹️ Cancelled`) + "\r\n");
+    } else {
+      write(c.red(`✕ ${e.message}`) + "\r\n");
+    }
   } finally {
-    stopSpinner();
+    stopSpinner(); // ⭐ Always stop spinner
     currentAbortController = null;
   }
 }
