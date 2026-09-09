@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -20,35 +20,29 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "ignoreDeprecations": "6.0",
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
-    "allowJs": true,
-    "checkJs": false,
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "types": ["node"],
     "typeRoots": ["./node_modules/@types"],
-    "outDir": "./dist",
-    "rootDir": "./",
-    "skipLibCheck": true,
-    "skipDefaultLibCheck": true
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "preserveConstEnums": true
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.js",
-    "**/*.jsx"
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "build",
     "coverage",
-    "**/*.test.ts",
-    "**/*.spec.ts"
-  ],
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
-  }
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/**/__tests__/**"
+  ]
 }
