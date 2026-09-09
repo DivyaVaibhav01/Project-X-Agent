@@ -9,7 +9,6 @@ import { createSession, renderBanner, c, loadConfig, saveConfig, REPO_URL } from
 const PORT = Number(process.env?.PORT || 3001);
 const PROMPT = `${c.magenta("You")} ${c.gray("›")} `;
 
-// Get local IP
 function getLocalIP(): string {
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
@@ -22,17 +21,15 @@ function getLocalIP(): string {
   return '0.0.0.0';
 }
 
-// Per-connection input buffer
-type Conn = { buffer: string; session: ReturnType<typeof createSession> };
+// ✅ FIXED: Added isProcessing to the type definition
+type Conn = { buffer: string; session: ReturnType<typeof createSession>; isProcessing: boolean };
 const connections = new WeakMap<any, Conn>();
-const sessionRefs = new WeakMap<any, any>(); // For abort
+const sessionRefs = new WeakMap<any, any>(); 
 
-// The magic line: Get the installation folder where .env actually lives
 const configRoot = process.env.PROJECT_X_ROOT || path.resolve(import.meta.dir, '..');
 const envPath = path.join(configRoot, '.env');
 
-// Load configuration
-let config = loadConfig();
+let config: any = loadConfig();
 
 if (!config) {
   console.log(c.yellow('\n⚠️  No configuration found. Using environment variables or defaults...\n'));
@@ -51,9 +48,6 @@ if (!config) {
     saveConfig(config);
     console.log(c.green('✅ Configuration created from environment variables'));
   } else {
-    // CRITICAL: It still fails because loadConfig didn't read the .env file!
-    // We must make loadConfig aware of the .env file location.
-    
     console.log(c.red('❌ No configuration found. Please set environment variables or run the CLI first.'));
     console.log(c.gray('   Required: API_KEY, MODELS'));
     console.log(c.gray('   Optional: BASE_URL'));
@@ -66,11 +60,6 @@ if (!config) {
   console.log(`   Models: ${c.cyan(config.MODELS.join(', '))}`);
 }
 
-// ==============================================
-// FIX: Force loadConfig to look at the correct file
-// ==============================================
-// If you are using a custom loadConfig from agent.js, you must modify that function
-// to accept a path, OR you can manually read the .env here and override it:
 if (!config && fs.existsSync(envPath)) {
   console.log(c.yellow('📂 Found .env in installation folder, reading it now...'));
   const envContent = fs.readFileSync(envPath, 'utf-8');
@@ -92,11 +81,10 @@ if (!config && fs.existsSync(envPath)) {
       BASE_URL: baseURL,
       MODELS: models
     };
-    saveConfig(config); // Make sure saveConfig writes to configRoot, not cwd!
+    saveConfig(config); 
     console.log(c.green('✅ Configuration loaded from installation .env file'));
   }
 }
-// ==============================================
 
 const localIP = getLocalIP();
 
@@ -126,16 +114,113 @@ Bun.serve({
         fs,
         config: config,
       });
-      // Store session reference for abort
       sessionRefs.set(ws, session);
-      connections.set(ws, { buffer: "", session });
+      
+      connections.set(ws, { buffer: "", session, isProcessing: false });
+      
       write(renderBanner());
       write(PROMPT);
     },
+    
     async message(ws: any, data: any) {
-      // ... rest of your code remains exactly the same ...
+      const conn = connections.get(ws);
+      if (!conn) {
+        ws.send(c.red('Connection not found'));
+        return;
+      }
+
+      const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
+
+      if (conn.isProcessing) {
+        return; 
+      }
+
+      if (text === '\x7f' || text === '\b') { 
+        if (conn.buffer.length > 0) {
+          conn.buffer = conn.buffer.slice(0, -1);
+          ws.send('\b \b'); 
+        }
+        return;
+      }
+
+      if (text === '\x03' || text === '^C') {
+        ws.send('\r\n'); 
+        ws.send(c.yellow('^C')); 
+        conn.buffer = ""; 
+        ws.send(PROMPT);
+        return;
+      }
+
+      if (text === '\r' || text === '\n') {
+        const fullLine = conn.buffer.trim();
+        conn.buffer = "";
+
+        if (!fullLine) {
+          ws.send('\r\n'); 
+          ws.send(PROMPT);
+          return;
+        }
+
+        if (fullLine === 'exit' || fullLine === 'quit') {
+          ws.send(c.yellow('👋 Goodbye!\n'));
+          ws.close(1000, 'User exit');
+          return;
+        }
+
+        if (fullLine === 'clear') {
+          ws.send('\r\n');
+          ws.send('\x1b[2J\x1b[0;0H');
+          ws.send(renderBanner());
+          ws.send(PROMPT);
+          return;
+        }
+
+        // Handle reload/reconfig
+        if (fullLine === 'reload' || fullLine === 'reconfig') {
+          const newConfig = loadConfig();
+          if (newConfig) {
+            config = newConfig;
+            const newSession = createSession({
+              write: (s: string) => ws.send(s),
+              fs,
+              config: config,
+            });
+            conn.session = newSession;
+            sessionRefs.set(ws, newSession);
+            ws.send('\r\n');
+            ws.send(c.green('✅ Configuration reloaded\n'));
+            ws.send(`   Endpoint: ${c.cyan(config.BASE_URL)}\n`);
+            ws.send(`   Models: ${c.cyan(config.MODELS.join(', '))}\n\n`);
+          } else {
+            ws.send('\r\n');
+            ws.send(c.red('❌ Failed to reload configuration\n'));
+          }
+          ws.send(PROMPT);
+          return;
+        }
+
+        conn.isProcessing = true; 
+        ws.send('\r\n');
+
+        try {
+          await conn.session.handleLine(fullLine);
+        } catch (error: any) {
+          ws.send(c.red(`❌ Error: ${error.message}\n`));
+        }
+        
+        conn.isProcessing = false;
+        ws.send(PROMPT);
+        return;
+      }
+      conn.buffer += text;
+      ws.send(text);
     },
+    
     close(ws: any) {
+      const session = sessionRefs.get(ws);
+      if (session && session.cancelCurrentSession) {
+        session.cancelCurrentSession();
+      }
       connections.delete(ws);
       sessionRefs.delete(ws);
     },
